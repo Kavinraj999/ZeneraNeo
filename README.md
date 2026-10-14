@@ -153,6 +153,9 @@ zen meta run my-project /spec-apply-feedback
 - `zen inspect` to open the report of the last run: its trajectory and
   improvement opportunities.
 
+> When you are standing inside a project, the project name is optional: a bare
+`zen run`, `zen check` or `zen inspect` means the project you are in.
+
 ## Our principles - autonomous specialization and improvement
 
 People define the job; they should not have to hand-design every agent, prompt,
