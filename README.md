@@ -18,26 +18,8 @@ specification and the knowledge your work already has.**
 
 ZeneraNeo turns a clear description of a job into an agentic system built for
 that job. Give it the documents, policies, API schemas, files and integrations
-the work depends on; describe the outcome and its constraints; then let **the
-meta-agent** design the specialists, tools, skills, memory, handoffs, retrieval
+the work depends on; describe the outcome and its constraints; then let **[the-meta-agent](#what-is-the-meta-agent)** design the specialists, tools, skills, memory, handoffs, retrieval
 and execution strategy that fit.
-
-## What is the meta-agent?
-
-The meta-agent is the agent that builds your system. It is part of the `@zenera/cli` (`zen meta run`) and works on your project as a developer would:
-
-- reads `SPECIFICATION.md` and generates the project from it: agents, prompts, tools, skills, memory rules and setup scripts;
-- runs the setup (for example, builds the search indexes) and checks that the
-  result works;
-- asks questions in `SPECIFICATION-FEEDBACK.md` when the specification is
-  unclear, instead of guessing;
-- reads the trajectories of your runs and proposes improvements to the
-  specification.
-
-![How The Meta Agent Works](docs/imgs/meta-agent-works.webp)
-
-You describe the job in `SPECIFICATION.md`; the meta-agent writes the system.
-The agents it creates are the ones you later run with `zen run`.
 
 ## What is it for?
 
@@ -157,6 +139,23 @@ zen meta run my-project /spec-apply-feedback
 
 > When you are standing inside a project, the project name is optional: a bare
 `zen run`, `zen check` or `zen inspect` means the project you are in.
+
+## What is the meta-agent?
+
+The meta-agent is the agent that builds your system. It is part of the `@zenera/cli` (`zen meta run`) and works on your project as a developer would:
+
+- reads `SPECIFICATION.md` and generates the project from it: agents, prompts, tools, skills, memory rules and setup scripts;
+- runs the setup (for example, builds the search indexes) and checks that the
+  result works;
+- asks questions in `SPECIFICATION-FEEDBACK.md` when the specification is
+  unclear, instead of guessing;
+- reads the trajectories of your runs and proposes improvements to the
+  specification.
+
+![How The Meta Agent Works](docs/imgs/meta-agent-works.webp)
+
+You describe the job in `SPECIFICATION.md`; the meta-agent writes the system.
+The agents it creates are the ones you later run with `zen run`.
 
 ## Our principles - autonomous specialization and improvement
 
