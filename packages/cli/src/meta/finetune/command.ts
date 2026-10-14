@@ -1,12 +1,22 @@
 import { liveHolder } from '@zenera/neo';
-import type { ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { type ChildProcess, spawnSync } from 'node:child_process';
+import {
+    closeSync,
+    existsSync,
+    mkdirSync,
+    openSync,
+    readFileSync,
+    renameSync,
+    writeFileSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { editorFiles } from '../editor.ts';
 import {
     bold,
+    CliError,
     cyan,
     dim,
+    EXIT,
     green,
     invalidError,
     json,
@@ -17,6 +27,7 @@ import {
     write,
     yellow,
 } from '../host.ts';
+import { costChanges, type Gate, measure, overLimits } from './cost.ts';
 import { drift } from './dataset/drift.ts';
 import { DatasetStore } from './dataset/store.ts';
 import { runLoop } from './loop.ts';
@@ -29,6 +40,7 @@ import {
     FAILURES_IN_A_ROW,
     FINETUNE_DIR,
     LEGACY_FINETUNE_DIR,
+    readJson,
     spawnZen,
     Tuning,
     type Zen,
@@ -39,7 +51,8 @@ import { liveView, startView, type Viewing } from './view.ts';
 // zen meta finetune
 // ---------------------------------------------------------------------------
 
-export const FINETUNE_USAGE = 'zen meta finetune <start|status|stop|serve|retry|session> [options]';
+export const FINETUNE_USAGE =
+    'zen meta finetune <start|status|stop|serve|retry|session|gate> [options]';
 
 export const FINETUNE_HELP = [
     'Tuning:',
@@ -49,6 +62,7 @@ export const FINETUNE_HELP = [
     '  zen meta finetune serve                   the tuning live in a browser, while it is not running',
     '  zen meta finetune retry --difficult       give difficult cases another round, then start',
     "  zen meta finetune session <case>          resume that case's analyze session",
+    '  zen meta finetune gate <apply dir>        would this apply pass? - for the apply agent',
     '',
     '  start: -N <workers> (4), -M <apply at> (4), --tries <n> (4), --mem-tries <n> (3),',
     '  --class <c>, --id <glob>, --rubric yes|no, --limit <n> and --more <n> (this start only);',
@@ -73,6 +87,9 @@ export const FINETUNE_DETAILS = [
     '  retry [ids...]         Another round for difficult cases: --difficult takes them all,',
     '                         ids and globs add to it, --class narrows. Run them with start.',
     "  session <case>         Print the command that resumes that case's analyze session.",
+    '  gate <apply dir>       Judge an apply in progress as the loop will: bytes moved per',
+    '                         agent, skill and file, any limit broken, and zen check.',
+    '                         Exits 1 when it would be undone. Read-only.',
     '',
     'Which cases (start):',
     '  --class <c>            Only this class. Repeatable.',
@@ -237,10 +254,12 @@ export async function runFinetune(
             return retryCases(ctx, project, values, rest);
         case 'session':
             return session(project, rest);
+        case 'gate':
+            return gate(ctx, project, rest, options);
         default:
             throw usageError(
                 `unknown finetune verb: ${verb}`,
-                'one of: start, status, stop, serve, retry, session',
+                'one of: start, status, stop, serve, retry, session, gate',
             );
     }
 }
@@ -575,4 +594,84 @@ function session(project: { dir: string; name: string }, rest: string[]): void {
         throw invalidError(`${id} has not been analyzed yet at revision ${c.rev}`);
     }
     write(`zen meta resume ${project.name} ${readFileSync(file, 'utf8').trim()}`);
+}
+
+/** The gates `#edit` runs after the apply agent exits, run now against the same `before` and limits. */
+async function gate(
+    ctx: FinetuneContext,
+    project: { dir: string },
+    rest: string[],
+    options: FinetuneOptions,
+): Promise<void> {
+    const [at] = rest;
+    if (!at) {
+        throw usageError('gate of which apply?', 'zen meta finetune gate <apply dir>');
+    }
+    const dir = resolve(ctx.cwd, at);
+    const g = readJson<Gate>(join(dir, 'gate.json'));
+    if (!g || existsSync(join(dir, 'applied.json'))) {
+        throw invalidError(
+            `${at} is not an apply in progress`,
+            'pass the apply directory named on the last line of /finetune-apply',
+        );
+    }
+    const after = await measure(project.dir);
+    const over = overLimits(g.before, after, g.limits);
+    const log = join(dir, 'gate.log');
+    const check = await (options.zen ?? checkOnce(project.dir))(
+        ['check', '--no-models', '--no-sandbox'],
+        log,
+    );
+    const pass = over.length === 0 && check.code === 0;
+    const grew = after.total - g.before.total;
+    if (ctx.json) {
+        json({
+            pass,
+            alwaysRead: { before: g.before.total, after: after.total },
+            limits: g.limits,
+            over,
+            check: { code: check.code, log },
+        });
+    } else {
+        const moved = costChanges(g.before, after);
+        write(
+            [
+                `always read, summed over the agents: ${g.before.total} -> ${after.total} bytes (${grew > 0 ? '+' : ''}${grew}); budget +${g.limits.budget}, ceiling ${g.limits.ceiling}`,
+                '',
+                ...(moved.length > 0 ? moved : ['nothing the agents read changed size']),
+                '',
+                ...(over.length > 0 ? ['over the limits:', ...over.map((o) => `- ${o}`), ''] : []),
+                check.code === 0
+                    ? 'zen check: passed'
+                    : `zen check: failed (exit ${check.code})\n${tail(log)}`,
+                pass ? 'gate: pass' : 'gate: fail - this apply would be undone',
+            ].join('\n'),
+        );
+    }
+    if (!pass) {
+        throw new CliError(
+            over.length > 0 ? 'over the limits' : 'zen check failed',
+            EXIT.failed,
+            over.length > 0 ? 'cut, move or extract, then run gate again' : undefined,
+        );
+    }
+}
+
+const tail = (log: string): string =>
+    existsSync(log) ? readFileSync(log, 'utf8').trimEnd().split('\n').slice(-30).join('\n') : '';
+
+/** `zen check` once, its output to `log` - not the loop's spawn, which records its children. */
+function checkOnce(root: string): Zen {
+    return async (args, log) => {
+        const fd = openSync(log, 'w');
+        try {
+            const res = spawnSync(process.execPath, [process.argv[1], ...args], {
+                cwd: root,
+                stdio: ['ignore', fd, fd],
+            });
+            return { code: res.status ?? 1, stdout: '' };
+        } finally {
+            closeSync(fd);
+        }
+    };
 }

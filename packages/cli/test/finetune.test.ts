@@ -1150,6 +1150,54 @@ describe('what an apply may cost', () => {
         expect(page).toContain('## The prose');
     });
 
+    it('hands an apply the numbers its gate will use, and shows what moved once it passes', async () => {
+        await dataset(['a1']);
+        const fake = fakeZen((_c, _p, _a, applies) => ({ done: applies > 0 }));
+        await start(fake.zen, '-N', '1', '-M', '2');
+        const gate = JSON.parse(readFileSync(join(appliesDir(), '001', 'gate.json'), 'utf8'));
+        expect(gate.before.total).toBe(Buffer.byteLength('# Rules\n'));
+        expect(gate.limits).toMatchObject({ budget: 1500 });
+        expect(readFileSync(join(appliesDir(), '001', 'cost.md'), 'utf8')).toContain(
+            '| file | agents/instructions.md |',
+        );
+        expect(readFileSync(join(appliesDir(), '001', 'APPLY.md'), 'utf8')).toContain(
+            '### What moved',
+        );
+    });
+
+    it('gate judges an apply in progress as the loop will, and refuses one that is done', async () => {
+        const dir = join(appliesDir(), '001');
+        mkdirSync(dir, { recursive: true });
+        const limits = { budget: 100, ceiling: 1_000_000, skillCap: 1000, maxSkills: 10 };
+        writeFileSync(
+            join(dir, 'gate.json'),
+            JSON.stringify({ before: await measure(root), limits }),
+        );
+        const ok: Zen = async () => ({ code: 0, stdout: '' });
+        const gate = (zen: Zen) =>
+            quiet(() =>
+                runFinetune(
+                    { args: ['gate', dir], json: true, cwd: root },
+                    { dir: root, name: 'acme' },
+                    { zen },
+                ),
+            );
+        const instructions = join(root, 'agents', 'instructions.md');
+
+        appendFileSync(instructions, 'x'.repeat(50));
+        await expect(gate(ok)).resolves.toBeUndefined();
+        appendFileSync(instructions, 'x'.repeat(100));
+        await expect(gate(ok)).rejects.toThrow(/over the limits/);
+
+        writeFileSync(instructions, '# Rules\n');
+        await expect(gate(async () => ({ code: 3, stdout: '' }))).rejects.toThrow(
+            /zen check failed/,
+        );
+
+        writeFileSync(join(dir, 'applied.json'), '{}');
+        await expect(gate(ok)).rejects.toThrow(/not an apply in progress/);
+    });
+
     it('sends a case that regressed on a recheck to the next apply, and rechecks it first after', async () => {
         await dataset(['a1', 'b1']);
         const fake = fakeZen((c, _p, _a, applies, recheck) =>

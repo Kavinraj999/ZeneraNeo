@@ -917,6 +917,10 @@ function gates(t: Tuning, dir: string, applied: AppliedFile | undefined): string
         if (existsSync(over)) {
             out.push(readFileSync(over, 'utf8').trim().replace(/^#/gm, '###'), '');
         }
+        const moved = join(dir, 'cost.md');
+        if (existsSync(moved)) {
+            out.push(readFileSync(moved, 'utf8').trim().replace(/^#/gm, '###'), '');
+        }
     }
     return out;
 }

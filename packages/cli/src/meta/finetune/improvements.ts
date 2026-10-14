@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { type Cost, costChanges, limits, measure, overLimits } from './cost.ts';
+import { type Cost, costChanges, type Gate, limits, measure, overLimits } from './cost.ts';
 import { errorIn, sizeOf } from './failure.ts';
 import type { Feedback, Improvement } from './feedback.ts';
 import { patchFiles, writeApply } from './report.ts';
@@ -475,6 +475,8 @@ export class Improvements {
         const before = await measure(t.root);
         await this.#writeBudget(dir, before);
         const bound = limits(await this.baseline(), t.config);
+        const gate: Gate = { before, limits: bound };
+        writeFileSync(join(dir, 'gate.json'), `${JSON.stringify(gate)}\n`);
         const unchanged = { before: before.total, after: before.total };
         const at = (step: 'edit' | 'check'): void => {
             if (this.current) {
@@ -538,6 +540,8 @@ export class Improvements {
                     [
                         `# Attempt ${attempt} was undone: over the limits`,
                         '',
+                        'Written by the tuning loop: this edit grew what the agents read past a limit, so the project was put back. The next attempt reads this file to know what to cut.',
+                        '',
                         ...over.map((o) => `- ${o}`),
                         '',
                         '## What moved',
@@ -559,6 +563,18 @@ export class Improvements {
                 return { to, bytes: unchanged };
             }
             writeFileSync(join(dir, 'diff.patch'), t.system.diff(from, to));
+            const moved = costChanges(before, after);
+            writeFileSync(
+                join(dir, 'cost.md'),
+                [
+                    '# What moved',
+                    '',
+                    'Written by the tuning loop once this apply passed its gates: bytes before and after it - what each agent reads on every call, each skill body, each file under agents/.',
+                    '',
+                    ...(moved.length > 0 ? moved : ['Nothing the agents read changed size.']),
+                    '',
+                ].join('\n'),
+            );
             return { to, bytes: { before: before.total, after: after.total } };
         }
     }

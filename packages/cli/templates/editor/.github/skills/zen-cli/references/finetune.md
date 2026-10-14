@@ -11,6 +11,7 @@ zen meta finetune start [-N 4] [-M 4] [--tries 4] [--mem-tries 3] [--merge-every
 zen meta finetune [status]
 zen meta finetune stop
 zen meta finetune session <case>
+zen meta finetune gate <apply dir>   # would this apply pass? run by the apply agent
 ```
 
 ## What one case goes through
@@ -42,7 +43,9 @@ tries used up  ->  difficult
   `--skill-cap` and no agent see more than `--max-skills`. A failed gate undoes
   the edit and the agent tries once more, told why. A second `zen check`
   failure stops the tuning; a second budget failure only undoes the apply, and
-  the parked cases carry on on the prose they had.
+  the parked cases carry on on the prose they had. `gate <apply dir>` runs both
+  gates on an apply in progress, against the same numbers, so the agent can cut
+  before it finishes.
 - **An apply tidies up after itself.** Every file it touches loses its
   duplicates, contradictions and stacked exceptions in the same edit; the
   bytes that frees count against its budget. `growth.json` tells it which
@@ -100,8 +103,9 @@ finetune/
         r<rev>/<NN>-<nomem|mem>/      one try: request.json, run.json, memory/,
                                       feedback.json, analysis.md, run.log, analyze.log
     applies/<NNN>/       APPLY.md (generated), inputs.json, deferred.json, budget.json,
-                         growth.json, apply.log, check.log, changes.md, decisions.json,
-                         diff.patch; budget.md when an attempt was undone
+                         growth.json, gate.json, apply.log, check.log, changes.md,
+                         decisions.json, diff.patch, cost.md; budget.md when an
+                         attempt was undone
     rechecks.json        every recheck: case, apply, state, tries, the request it sent
     rechecks/<NNN>/<id>/<NN>-nomem/   one recheck try, as a case's try
     baseline.json        what the agents read when the tuning began

@@ -184,7 +184,13 @@ the skill is how you find out whether it is.
     affected agent's prompt in the order it is assembled - house rules first,
     then its prompt. Every remaining copy must have a different audience, or
     go.
-14. **Check**: `zen check --no-models --no-sandbox` must pass when you finish.
+14. **Gate**: when your edits are done, run once
+    `zen meta finetune gate <apply dir>`. It judges the edit exactly as the
+    loop will after you: the bytes moved per agent, skill and file, any limit
+    broken, and `zen check`. On `gate: fail`, fix what it names and run it
+    again. Do not measure or diff files yourself and do not use git: the loop
+    never commits, so `git diff` mixes in earlier applies, and it records the
+    diff and the bytes of this apply after you finish.
 
 ## What to write
 
@@ -206,8 +212,6 @@ the skill is how you find out whether it is.
     **Disposition:** `edit existing`, `move and delete`, `delete contradiction`,
     `extract to skill` or `add because absent` - with the cases behind it.
 
-    **Before:** the sentence or section as it was, quoted (or "new section").
-
     **After:** the text as it is now, quoted.
 
     **Checked against:** the skill and rule it was held to, or "no skill
@@ -216,15 +220,13 @@ the skill is how you find out whether it is.
     **Why it generalises:** which queries beyond these cases it changes, and
     which it must not.
 
-    **Net:** bytes added to or removed from what the agents always read, and
-    to on-demand skills.
-
     **Expect:** what the next run's graph should show if it worked - for a
     skill, the `skills <name>` node before the step it covers.
     ```
 
-    A section for a tidy-up move has **Move**, **Obligation**, **Before**,
-    **After** and **Net** only.
+    A section for a tidy-up move has **Move**, **Obligation** and **After**
+    only. The diff and the bytes moved are added by the loop - do not write
+    them.
 
     Then a section **Not applied**: every rejected, deferred or structural
     improvement, with why.
@@ -263,5 +265,5 @@ skill an improvement created or changed - the loop checks the case's next run
 loads it. The note is one line a person reads in the case's FEEDBACK.md.
 
 Your answer is a short summary: how many rules, which files, what the tidy-up
-merged or cut, the net change in bytes, and anything structural the user must
-decide.
+merged or cut, the net change in bytes `gate` printed, and anything structural
+the user must decide.

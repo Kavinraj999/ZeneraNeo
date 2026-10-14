@@ -34,6 +34,12 @@ export interface Limits {
     maxSkills: number;
 }
 
+/** `gate.json` in an apply's folder: what its budget gate compares against, kept for `finetune gate`. */
+export interface Gate {
+    before: Cost;
+    limits: Limits;
+}
+
 export async function measure(root: string): Promise<Cost> {
     return costOf(root, await validateProject({ dir: root }));
 }
