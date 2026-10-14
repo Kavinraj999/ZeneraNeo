@@ -18,9 +18,24 @@ specification and the knowledge your work already has.**
 
 ZeneraNeo turns a clear description of a job into an agentic system built for
 that job. Give it the documents, policies, API schemas, files and integrations
-the work depends on; describe the outcome and its constraints; then let the
-meta-agent design the specialists, tools, skills, memory, handoffs, retrieval
+the work depends on; describe the outcome and its constraints; then let **the
+meta-agent** design the specialists, tools, skills, memory, handoffs, retrieval
 and execution strategy that fit.
+
+## What is the meta-agent?
+
+The meta-agent is the agent that builds your system. It is part of the `@zenera/cli` (`zen meta run`) and works on your project as a developer would:
+
+- reads `SPECIFICATION.md` and generates the project from it: agents, prompts, tools, skills, memory rules and setup scripts;
+- runs the setup (for example, builds the search indexes) and checks that the
+  result works;
+- asks questions in `SPECIFICATION-FEEDBACK.md` when the specification is
+  unclear, instead of guessing;
+- reads the trajectories of your runs and proposes improvements to the
+  specification.
+
+You describe the job in `SPECIFICATION.md`; the meta-agent writes the system.
+The agents it creates are the ones you later run with `zen run`.
 
 ## What is it for?
 
@@ -28,8 +43,6 @@ ZeneraNeo is for recurring work that needs more than one general-purpose chat:
 technical investigation, policy review, operations triage, software delivery,
 analysis, and workflows that must show their evidence. The result is a project
 you can run, inspect, improve, review and share.
-
-## ⚠️ Status: Early stage public preview
 
 > **This is an open-source side project for experimentation and chore work.**
 > It is **not** the official Zenera AI Platform, and it carries no support or
@@ -39,109 +52,71 @@ you can run, inspect, improve, review and share.
 
 ### 1. Install
 
-You need:
+> You need [Node.js](https://nodejs.org) 24+ and [Podman](https://podman.io) (agents run commands in a container).
 
-- [Node.js](https://nodejs.org) 24 or newer
-- [Podman](https://podman.io) - agents run commands in a container
-
-Then install the packages:
+Install the packages:
 
 ```sh
 npm i -g @zenera/cli @zenera/neo @zenera/rag @zenera/faker
 ```
 
-### 2. Add a model key and create a project
+### 2. Add a model key and pick the meta-agent model
 
 ```sh
 zen key add openai
+zen meta model --pick
+```
+
+### 3. Create and open a project
+
+```sh
 zen init my-project
 zen open my-project
 ```
 
-### 3. Describe the system and generate it
+`zen open my-project` opens the project in your default editor.
 
-`zen open my-project` opens the project in your default editor, where you can
-start editing `SPECIFICATION.md`. 
+### 4. Describe the system
 
-`SPECIFICATION.md` is file is where most of the work on your
-project happens. Use it to describe the purpose of the project, its models, its agents, and other details.
+Start editing `SPECIFICATION.md`.
 
-**The purpose of the project:**
+`SPECIFICATION.md` is the file where most of the work on your project happens.
+Use it to describe the purpose of the project, its models, its agents, and
+other details. It is free-form: you can describe the agents in your own words,
+and the meta-agent turns that description into the actual system.
 
-```markdown
-## Purpose
+`SPECIFICATION.md` may include, but is not limited to, these items:
 
-Answer questions about the Hugging Face Transformers documentation from an index of it, quoting the passage the answer came from.
-```
+- **Purpose** - what the project is for.
+- **Models** - the chat and embedding models the project uses.
+- **Setup** - what must be done before the first run, such as downloading data
+  and building indexes.
+- **Agents** - what each agent does, its rules and its tools.
+- **Knowledge** - existing, read-only materials the agents can read, such as
+  documentation indexes and API schemas.
+- **Memory** - what the agents should remember between runs, and when to look
+  in memory first.
 
-**The models you want the project to use:**
+> **❓ Why different models are configured?**
+> 
+> **Because both are needed:**
+>
+> - **The meta-agent model** (`zen meta model --pick`) is used by `zen meta` to
+>  _build_ the project. It writes the agents, scripts and configuration, so
+>  choose a strong reasoning model. It is set once per machine and is not part
+>  of the project.
+> - **The project models** (the `## Models` section of `SPECIFICATION.md`) are
+>  used by the generated agents when they _run_. They are stored in the project
+>  (`agents.yaml`), so anyone who clones it runs the same system. They include
+>  an embedding model for indexes and memory. A chat model cannot be used for
+>  embeddings, and changing the embedding model requires re-indexing.
 
-```markdown
-## Models
 
-- `openai:gpt-5.6-luna` — one model for the whole project.
-- `openai:text-embedding-3-small` — the vectors, for the index and memory both.
-```
-
-**The setup that must be done before the first run:**
-
-```markdown
-## Setup
-
-Download `https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/examples/projects/common/markdown-documentation-transformers.zip`
-into `.tmp/`, unzip it, create an index and store it in `assets/docs-db`. It skips when that index
-can already answer, and re-embeds it from its own `sources/` when the index is present but its
-vectors are not.
-```
-
-**What the agents should do:**
-
-```markdown
-## Agents
-
-`default` — the only agent.
-
-- Hugging Face documentation assistant.
-- The index is the only source. It lists the documents once before its first search, and never answers from its own recollection of the library.
-- Anything outside the Hugging Face documentation — another library, the weather, a code review — is declined outright, with a line on what it does cover.
-- Every answer names the document and the paragraph it came from.
-- Recalls before answering, and commits what it found, so the same question is not searched twice.
-- Enable all file tools.
-```
-
-**Knowledge - what the agents can read.** 
-
-These are existing materials that do
-not change between runs, such as documentation indexes and API schemas. Agents
-read them but never change them:
-
-```markdown
-## Knowledge
-
-- `assets/docs-db` — the Transformers documentation, read-only at `/assets`.
-- create and preload a skill that explains how to do search.
-```
-
-**Memory - what the agents should remember.** 
-
-This is what the agents learn
-while they work, kept between runs so the same work is not done twice. Describe
-what to save and when to look in memory first:
-
-```markdown
-## Memory
-
-- use workspace files to store memory files for large data chunks.
-- always try to answer from memory first if all data is in memory.
-- always save results that took some work to obtain.
-- always store detailed sources of information in memory files.
-- analyze what queries were made to the memory.
-    - if nothing was found and you had to do some work to obtain the result, save it to memory.
-```
-
-A complete example of this file is
-[`SPECIFICATION.md`](examples/projects/01-docs-rag/SPECIFICATION.md) in
+See a complete example in
+[`SPECIFICATION.md`](examples/projects/01-docs-rag/SPECIFICATION.md) of
 example 01.
+
+### 5. Generate the system
 
 Once `SPECIFICATION.md` is filled in, run this in the CLI:
 
@@ -151,33 +126,32 @@ zen meta run my-project /spec-sync-project
 
 It generates and updates the system.
 
-### 4. Answer the meta-agent's questions
+### 6. Clarify the specification with the meta-agent
 
-Check whether `SPECIFICATION-FEEDBACK.md` exists. 
+Check whether `SPECIFICATION-FEEDBACK.md` exists.
 
-> The meta-agent does not guess: if something is unclear, it asks. 
+**The meta-agent does not guess: if something is unclear, it asks.**
 
-- This file is a questionnaire.
+- `SPECIFICATION-FEEDBACK.md` is a questionnaire.
 - Every question carries two to four written-out answers, each with a `[ ]` box.
 - Put an `x` in the box of the answer you want, delete the ones you do not, or
-write your own in their place. Any of these counts as an answer. 
-
-Then apply the feedback:
+  write your own in their place. Any of these counts as an answer.
+- Apply the feedback:
 
 ```sh
 zen meta run my-project /spec-apply-feedback
 ```
 
-### 5. Check and run
+### 7. Check and run
 
-Finally you can use these commands:
+- `zen check` to verify that the project loads and the models answer.
+- `zen run my-project "your question"` to run it. Without a question it opens
+  an interactive terminal app.
 
-- `zen check` to verify that the generated system is ready to work.
-- `zen run` to run it.
-- `zen inspect` to examine the resulting trajectory and improvement
-  opportunities.
+### 8. Inspect the results
 
-Complete project examples are in [examples/projects](examples/projects/01-docs-rag/README.md).
+- `zen inspect` to open the report of the last run: its trajectory and
+  improvement opportunities.
 
 ## Our principles - autonomous specialization and improvement
 
