@@ -34,6 +34,8 @@ The meta-agent is the agent that builds your system. It is part of the `@zenera/
 - reads the trajectories of your runs and proposes improvements to the
   specification.
 
+![How The Meta Agent Works](docs/imgs/meta-agent-works.webp)
+
 You describe the job in `SPECIFICATION.md`; the meta-agent writes the system.
 The agents it creates are the ones you later run with `zen run`.
 
