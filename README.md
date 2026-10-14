@@ -97,19 +97,19 @@ and the meta-agent turns that description into the actual system.
 - **Memory** - what the agents should remember between runs, and when to look
   in memory first.
 
-> **❓ Why different models are configured?**
-> 
-> **Because both are needed:**
->
-> - **The meta-agent model** (`zen meta model --pick`) is used by `zen meta` to
->  _build_ the project. It writes the agents, scripts and configuration, so
->  choose a strong reasoning model. It is set once per machine and is not part
->  of the project.
-> - **The project models** (the `## Models` section of `SPECIFICATION.md`) are
->  used by the generated agents when they _run_. They are stored in the project
->  (`agents.yaml`), so anyone who clones it runs the same system. They include
->  an embedding model for indexes and memory. A chat model cannot be used for
->  embeddings, and changing the embedding model requires re-indexing.
+ **❓ Why different models are configured?**
+ 
+ **Because both are needed:**
+
+ - **The meta-agent model** (`zen meta model --pick`) is used by `zen meta` to
+  _build_ the project. It writes the agents, scripts and configuration, so
+  choose a strong reasoning model. It is set once per machine and is not part
+  of the project.
+ - **The project models** (the `## Models` section of `SPECIFICATION.md`) are
+  used by the generated agents when they _run_. They are stored in the project
+  (`agents.yaml`), so anyone who clones it runs the same system. They include
+  an embedding model for indexes and memory. A chat model cannot be used for
+  embeddings, and changing the embedding model requires re-indexing.
 
 
 See a complete example in
