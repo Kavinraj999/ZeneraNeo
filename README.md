@@ -22,16 +22,164 @@ the work depends on; describe the outcome and its constraints; then let the
 meta-agent design the specialists, tools, skills, memory, handoffs, retrieval
 and execution strategy that fit.
 
-This is for recurring work that needs more than one general-purpose chat:
+## What is it for?
+
+ZeneraNeo is for recurring work that needs more than one general-purpose chat:
 technical investigation, policy review, operations triage, software delivery,
-analysis and workflows that must show their evidence. The result is a project
+analysis, and workflows that must show their evidence. The result is a project
 you can run, inspect, improve, review and share.
+
+## ⚠️ Status: Early stage public preview
 
 > **This is an open-source side project for experimentation and chore work.**
 > It is **not** the official Zenera AI Platform, and it carries no support or
 > stability promises.
 
-## Autonomous specialization and improvement
+## Getting started
+
+### 1. Install
+
+You need:
+
+- [Node.js](https://nodejs.org) 24 or newer
+- [Podman](https://podman.io) - agents run commands in a container
+
+Then install the packages:
+
+```sh
+npm i -g @zenera/cli @zenera/neo @zenera/rag @zenera/faker
+```
+
+### 2. Add a model key and create a project
+
+```sh
+zen key add openai
+zen init my-project
+zen open my-project
+```
+
+### 3. Describe the system and generate it
+
+`zen open my-project` opens the project in your default editor, where you can
+start editing `SPECIFICATION.md`. 
+
+`SPECIFICATION.md` is file is where most of the work on your
+project happens. Use it to describe the purpose of the project, its models, its agents, and other details.
+
+**The purpose of the project:**
+
+```markdown
+## Purpose
+
+Answer questions about the Hugging Face Transformers documentation from an index of it, quoting the passage the answer came from.
+```
+
+**The models you want the project to use:**
+
+```markdown
+## Models
+
+- `openai:gpt-5.6-luna` — one model for the whole project.
+- `openai:text-embedding-3-small` — the vectors, for the index and memory both.
+```
+
+**The setup that must be done before the first run:**
+
+```markdown
+## Setup
+
+Download `https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/examples/projects/common/markdown-documentation-transformers.zip`
+into `.tmp/`, unzip it, create an index and store it in `assets/docs-db`. It skips when that index
+can already answer, and re-embeds it from its own `sources/` when the index is present but its
+vectors are not.
+```
+
+**What the agents should do:**
+
+```markdown
+## Agents
+
+`default` — the only agent.
+
+- Hugging Face documentation assistant.
+- The index is the only source. It lists the documents once before its first search, and never answers from its own recollection of the library.
+- Anything outside the Hugging Face documentation — another library, the weather, a code review — is declined outright, with a line on what it does cover.
+- Every answer names the document and the paragraph it came from.
+- Recalls before answering, and commits what it found, so the same question is not searched twice.
+- Enable all file tools.
+```
+
+**Knowledge - what the agents can read.** 
+
+These are existing materials that do
+not change between runs, such as documentation indexes and API schemas. Agents
+read them but never change them:
+
+```markdown
+## Knowledge
+
+- `assets/docs-db` — the Transformers documentation, read-only at `/assets`.
+- create and preload a skill that explains how to do search.
+```
+
+**Memory - what the agents should remember.** 
+
+This is what the agents learn
+while they work, kept between runs so the same work is not done twice. Describe
+what to save and when to look in memory first:
+
+```markdown
+## Memory
+
+- use workspace files to store memory files for large data chunks.
+- always try to answer from memory first if all data is in memory.
+- always save results that took some work to obtain.
+- always store detailed sources of information in memory files.
+- analyze what queries were made to the memory.
+    - if nothing was found and you had to do some work to obtain the result, save it to memory.
+```
+
+A complete example of this file is
+[`SPECIFICATION.md`](examples/projects/01-docs-rag/SPECIFICATION.md) in
+example 01.
+
+Once `SPECIFICATION.md` is filled in, run this in the CLI:
+
+```sh
+zen meta run my-project /spec-sync-project
+```
+
+It generates and updates the system.
+
+### 4. Answer the meta-agent's questions
+
+Check whether `SPECIFICATION-FEEDBACK.md` exists. 
+
+> The meta-agent does not guess: if something is unclear, it asks. 
+
+- This file is a questionnaire.
+- Every question carries two to four written-out answers, each with a `[ ]` box.
+- Put an `x` in the box of the answer you want, delete the ones you do not, or
+write your own in their place. Any of these counts as an answer. 
+
+Then apply the feedback:
+
+```sh
+zen meta run my-project /spec-apply-feedback
+```
+
+### 5. Check and run
+
+Finally you can use these commands:
+
+- `zen check` to verify that the generated system is ready to work.
+- `zen run` to run it.
+- `zen inspect` to examine the resulting trajectory and improvement
+  opportunities.
+
+Complete project examples are in [examples/projects](examples/projects/01-docs-rag/README.md).
+
+## Our principles - autonomous specialization and improvement
 
 People define the job; they should not have to hand-design every agent, prompt,
 handoff, tool, memory rule and evaluation loop required to do it well.
@@ -61,7 +209,7 @@ and propose the next improvement with evidence.
 ## What the toolkit creates
 
 - **Specialized agents** with distinct responsibilities, models and execution
-  boundaries instead of one prompt asked to do everything.
+  boundaries, instead of one prompt asked to do everything.
 - **Teams that coordinate** through explicit handoffs, parallel work and
   strategies matched to the task.
 - **Knowledge systems** over documentation and API schemas, with retrieval that
@@ -74,23 +222,6 @@ and propose the next improvement with evidence.
   trajectories that explain what happened, how long it took and what it used.
 - **Shareable projects** expressed as Markdown and YAML, ready for source
   control, code review and reuse by another team.
-
-## Start with a specification
-
-```sh
-npm i -g @zenera/cli
-zen key add openai
-zen init my-project
-zen open my-project
-```
-
-Describe the system in `SPECIFICATION.md`, then run `/spec-sync-project` from your
-editor's agent chat. It generates and updates the system. Use `zen check` to
-verify it, `zen run` to exercise it, and `zen inspect` to examine the resulting
-trajectory and improvement opportunities.
-
-The complete project workflow, command reference and examples are in
-[`@zenera/cli`](packages/cli/README.md).
 
 ## Packages
 
