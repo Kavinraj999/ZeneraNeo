@@ -61,6 +61,11 @@ standard above using its nodes. So, during an analysis:
 - The only commands that reach outside the run are `zen memory search`,
   `zen rag docs search` and `zen rag schema search` - to check whether
   something the run needed was findable.
+- You run on the host, in the project root - not in the run's sandbox. A path
+  the run used as `/assets/<x>` is `assets/<x>` here (or under the folder
+  `assets:` names in `agents.yaml`). So call
+  `zen rag docs search -d assets/<x> "<query>"`, never `-d /assets/...`, and
+  always pass `-d`: `$ZEN_DOCS_DB` / `$ZEN_SCHEMA_DB` may name the sandbox path.
 - Never run `python3`, `node`, `curl`, `wget` or anything under the run's
   `workspace/`, never call the project's APIs or services, never run
   `zen run`, and never read the project's `resources/` or reference
