@@ -32,6 +32,8 @@ so nothing is fetched from the network.
 
 Files are watched through their directory, so a writer that replaces a file by
 renaming a temporary over it is followed; a slow poll backs up `fs.watch`.
+A file is rendered once per change however many pages show it, and one path is
+pushed at most once per `throttleMs`.
 
 ## Options
 
@@ -43,6 +45,7 @@ renaming a temporary over it is followed; a slow poll backs up `fs.watch`.
 | `hidden`     | `false`                        | serve dotfiles; `.env`, `.git` never are    |
 | `maxBytes`   | 2 MB                           | the most of one file rendered               |
 | `maxClients` | 64                             | pages open at once                          |
+| `throttleMs` | 1000                           | least time between two pushes of one path   |
 
 ## Safety
 
