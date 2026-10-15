@@ -2,19 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-    type Brief,
-    BRIEF_MAX,
-    files,
-    renderBrief,
-    type Step,
-} from '../src/meta/finetune/brief.ts';
+import { type AnalyzeBrief, renderAnalyzeBrief } from '../src/meta/finetune/analyze-brief.ts';
+import { editorSkills } from '../src/meta/finetune/apply-brief.ts';
+import { BRIEF_MAX, files, type Step } from '../src/meta/finetune/brief.ts';
 import type { Tuning } from '../src/meta/finetune/tuning.ts';
 
 let root: string;
 const calls: string[][] = [];
 
-function brief(zen: (args: string[]) => { code: number; stdout: string }): Brief {
+function brief(zen: (args: string[]) => { code: number; stdout: string }): AnalyzeBrief {
     return {
         t: {
             zen: async (args: string[]) => {
@@ -48,12 +44,12 @@ afterEach(() => {
 
 describe('renderBrief', () => {
     it('shows each command with its output fenced, a glob as one block per file', async () => {
-        const steps: Step[] = [
+        const steps: Step<AnalyzeBrief>[] = [
             { zen: (b) => ['inspect', 'graph', '--dir', b.run.dir, '--no-style'] },
             { cat: () => ['agents.yaml', 'agents/prompts/*.md'] },
             { sh: (_b, q) => `printf %s ${q("it's here")}` },
         ];
-        const text = await renderBrief(
+        const text = await renderAnalyzeBrief(
             brief(() => ({ code: 0, stdout: 'flowchart TB\n' })),
             join(root, 'brief.log'),
             steps,
@@ -72,7 +68,7 @@ describe('renderBrief', () => {
     });
 
     it('expands globs with files(), and fences a file holding backticks so it cannot close', async () => {
-        const text = await renderBrief(
+        const text = await renderAnalyzeBrief(
             brief(() => ({ code: 0, stdout: '' })),
             'log',
             [{ cat: (b) => files(b, 'agents/prompts/*.md') }],
@@ -84,7 +80,7 @@ describe('renderBrief', () => {
     });
 
     it('skips a step that returns nothing, and says when one failed', async () => {
-        const text = await renderBrief(
+        const text = await renderAnalyzeBrief(
             brief(() => ({ code: 2, stdout: 'half' })),
             'L',
             [
@@ -103,7 +99,7 @@ describe('renderBrief', () => {
 
     it('cuts a step at its max, and leaves out what would pass BRIEF_MAX', async () => {
         const big = 'x'.repeat(BRIEF_MAX);
-        const text = await renderBrief(
+        const text = await renderAnalyzeBrief(
             brief(() => ({ code: 0, stdout: big })),
             'L',
             [
@@ -116,5 +112,29 @@ describe('renderBrief', () => {
         expect(text).toContain('> zen b\n\n(left out - the brief is full; run it yourself)');
         expect(text).toContain('### After\n\nsmall');
         expect(Buffer.byteLength(text)).toBeLessThan(BRIEF_MAX);
+    });
+});
+
+describe('editorSkills', () => {
+    it('names a skill for each capability the project uses, and memory for a mem run', () => {
+        expect(editorSkills(root, [{ phase: 'nomem' }]).map(([n]) => n)).toEqual([
+            'zen-instructions',
+        ]);
+        writeFileSync(
+            join(root, 'agents.yaml'),
+            'agents:\n  a:\n    handoffs: [b]\n    knowledge:\n      docs: x\n',
+        );
+        writeFileSync(
+            join(root, 'agents', 'prompts', 'b.md'),
+            'Use run_command with zen rag schema.\n',
+        );
+        expect(editorSkills(root, [{ phase: 'mem' }]).map(([n]) => n)).toEqual([
+            'zen-instructions',
+            'zen-memory',
+            'zen-rag-docs',
+            'zen-rag-schema',
+            'zen-topology',
+            'zen-code-python',
+        ]);
     });
 });

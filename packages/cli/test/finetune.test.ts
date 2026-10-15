@@ -122,6 +122,7 @@ function fakeZen(
     let runs = 0;
     let applies = 0;
     let failChecks = 0;
+    let forgetDecisions = 0;
     let applyMs = 0;
     let applyText = (n: number) => `- rule ${n}\n`;
     let decision = (_request: string, _improvement: string, _apply: number): object => ({
@@ -241,6 +242,9 @@ function fakeZen(
             if (applyMs) {
                 await new Promise((r) => setTimeout(r, applyMs));
             }
+            if (forgetDecisions-- > 0) {
+                return { code: 0, stdout: JSON.stringify(META_ENVELOPE) };
+            }
             const inputs = JSON.parse(readFileSync(join(dir, 'inputs.json'), 'utf8')) as {
                 id: string;
                 improvements: { id: string }[];
@@ -350,6 +354,10 @@ function fakeZen(
         },
         failChecks(n: number) {
             failChecks = n;
+        },
+        /** The next n applies edit, then end without writing decisions.json - as a cut-off agent does. */
+        forgetDecisions(n: number) {
+            forgetDecisions = n;
         },
         slowApply(ms: number) {
             applyMs = ms;
@@ -995,6 +1003,62 @@ describe('zen meta finetune', () => {
         fake.failChecks(2);
         await expect(start(fake.zen, '-N', '1')).rejects.toThrow(/broken twice/);
         expect(readFileSync(join(root, 'agents', 'instructions.md'), 'utf8')).toBe('# Rules\n');
+    });
+
+    it('undoes an apply that ended without deciding every improvement, and tries once more', async () => {
+        await dataset(['a1']);
+        const fake = fakeZen((_c, _p, _a, applies) => ({ done: applies > 1 }));
+        fake.forgetDecisions(1);
+        await start(fake.zen, '-N', '1');
+        const dir = join(root, 'finetune', 'applies', '001');
+        expect(readFileSync(join(dir, 'missing.md'), 'utf8')).toContain('- a1@nomem-1 i1');
+        expect(readFileSync(join(dir, 'brief.md'), 'utf8')).toContain(
+            '> cat finetune/applies/001/missing.md',
+        );
+        expect(readFileSync(join(root, 'agents', 'instructions.md'), 'utf8')).toBe(
+            '# Rules\n- rule 2\n',
+        );
+        expect(JSON.parse(readFileSync(join(dir, 'applied.json'), 'utf8')).ids).toEqual([
+            'a1@nomem-1',
+        ]);
+    });
+
+    it('stops when an apply ends twice without its decisions, leaving its requests unapplied', async () => {
+        await dataset(['a1']);
+        const fake = fakeZen(() => ({ done: false }));
+        fake.forgetDecisions(2);
+        await expect(start(fake.zen, '-N', '1')).rejects.toThrow(/without deciding/);
+        expect(readFileSync(join(root, 'agents', 'instructions.md'), 'utf8')).toBe('# Rules\n');
+        expect(existsSync(join(root, 'finetune', 'applies', '001', 'applied.json'))).toBe(false);
+    });
+
+    it('hands the apply a brief: requests by file, skills to load, earlier tries', async () => {
+        await dataset(['a1']);
+        const fake = fakeZen((_c, _p, _a, applies) => ({ done: applies > 1 }));
+        await start(fake.zen, '-N', '1');
+        const second = fake.calls.filter((a) => a.includes('/finetune-apply'))[1]!;
+        const dir = join(root, 'finetune', 'applies', '002');
+        expect(second.at(-1)).toBe(dir);
+        expect(second.slice(-4)).toEqual([
+            '--prompt-file',
+            join(dir, 'brief.md'),
+            '/finetune-apply',
+            dir,
+        ]);
+        const brief = readFileSync(join(dir, 'brief.md'), 'utf8');
+        expect(brief).toContain('## The brief');
+        expect(brief).toContain('This is apply 002, attempt 1.');
+        expect(brief).toContain('  - `a1@nomem-2`: i1');
+        expect(brief).toContain(`\`zen meta finetune gate ${dir}\``);
+        expect(brief).toContain('### Skills to load\n\n- `zen-instructions` - every apply');
+        expect(brief).toMatch(/### Requests by file\n\n#### \(no file named\) - 1 case\(s\): a1/);
+        expect(brief).toContain('| a1@nomem-2 | i1 | - | say it 1 | - | - | this batch |');
+        expect(brief).toContain(
+            '- `a1@nomem-1` i1, apply 001, (no file named): say it 1 → applied: agents/instructions.md',
+        );
+        expect(brief).toContain('> cat finetune/applies/002/budget.json');
+        expect(brief).toContain('> cat agents/instructions.md');
+        expect(brief).not.toContain('missing.md');
     });
 
     it('keeps every passing memory privately and merges them every K', async () => {

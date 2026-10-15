@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { writeBrief } from './brief.ts';
+import { writeAnalyzeBrief } from './analyze-brief.ts';
 import type { Case } from './dataset/types.ts';
 import { type Feedback, readFeedback } from './feedback.ts';
 import { writeApply } from './report.ts';
@@ -289,7 +289,7 @@ export class Rechecks {
             const patch = join(t.improvements.dir, r.apply, 'diff.patch');
             const session = randomUUID();
             writeFileSync(join(dir, 'session'), `${session}\n`);
-            const brief = await writeBrief(t, dir, {
+            const brief = await writeAnalyzeBrief(t, dir, {
                 run,
                 case: c,
                 phase: 'nomem',

@@ -15,7 +15,7 @@ import { hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { EXIT } from '../host.ts';
 import { sessionKept } from '../tokens.ts';
-import { writeBrief } from './brief.ts';
+import { writeAnalyzeBrief } from './analyze-brief.ts';
 import { batchInput } from './dataset/export.ts';
 import { DatasetStore } from './dataset/store.ts';
 import type { Case } from './dataset/types.ts';
@@ -397,7 +397,7 @@ async function analyzeOnce(
     writeFileSync(join(dir, 'session'), `${session}\n`);
     const all = attemptsOf(t, c);
     const at = all.findIndex((a) => a.phase === phase && a.attempt === attempt);
-    const brief = await writeBrief(t, dir, {
+    const brief = await writeAnalyzeBrief(t, dir, {
         run,
         case: c,
         phase,

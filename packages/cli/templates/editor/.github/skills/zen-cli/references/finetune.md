@@ -86,6 +86,11 @@ tries used up  ->  difficult
   hands it to `/analyze` in the prompt (`zen meta run --prompt-file`). Each try
   is analyzed in a session of its own; `session <case>` prints the command to
   resume the latest one.
+- **So does each apply.** Its `brief.md` holds the requests and held-back
+  improvements grouped by the file they name, the editor skills to load, the
+  earlier tries of the same cases with their decisions, the budget, and the
+  files to edit. An attempt that ends without a decision for every
+  improvement is undone (`missing.md`) and tried once more.
 - **Stop and resume freely.** `stop` (or Ctrl-C once) lets the steps in flight
   finish, then exits; Ctrl-C twice kills them. `start` again carries on: every
   step's result is on disk, and nothing finished is repeated.
@@ -114,9 +119,9 @@ finetune/
                                       brief.md, session, feedback.json, analysis.md,
                                       run.log, analyze.log
     applies/<NNN>/       APPLY.md (generated), inputs.json, deferred.json, budget.json,
-                         growth.json, gate.json, apply.log, check.log, changes.md,
-                         decisions.json, diff.patch, cost.md; budget.md when an
-                         attempt was undone
+                         growth.json, gate.json, brief.md, apply.log, check.log,
+                         changes.md, decisions.json, diff.patch, cost.md; budget.md
+                         or missing.md when an attempt was undone
     rechecks.json        every recheck: case, apply, state, tries, the request it sent
     rechecks/<NNN>/<id>/<NN>-nomem/   one recheck try, as a case's try
     baseline.json        what the agents read when the tuning began

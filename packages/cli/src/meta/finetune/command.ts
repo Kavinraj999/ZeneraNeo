@@ -620,7 +620,7 @@ async function gate(
     if (!g || existsSync(join(dir, 'applied.json'))) {
         throw invalidError(
             `${at} is not an apply in progress`,
-            'pass the apply directory named on the last line of /finetune-apply',
+            'pass the apply directory named on the line after /finetune-apply',
         );
     }
     const after = await measure(project.dir);
