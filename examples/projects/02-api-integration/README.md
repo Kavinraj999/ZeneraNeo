@@ -1,4 +1,4 @@
-# 02 - Inbox-to-Calendar Meeting Coordinator
+# 02 - API Integration
 
 A worked example: find a meeting request in a mock mailbox, check mock calendar
 availability, propose a time, then - only after the user confirms - call the
@@ -9,6 +9,12 @@ This example demonstrates two integrations described by OpenAPI specs in
 specs to understand the API contracts, and `zen faker` serves them as mock
 HTTP APIs. The generated project contains the integration code that calls the
 mock endpoints.
+
+**Why Faker?** Real mail and calendar services need accounts, credentials and
+send real messages. `zen faker` stands in for them: it serves the same API
+contracts locally, so you can build and test the integrations - request shapes,
+error handling, confirmation before writes - without touching real data or
+sending anything.
 
 Everything in this folder is the intent and instructions - the generated
 project is built from [SPECIFICATION.md](SPECIFICATION.md).
@@ -35,13 +41,13 @@ In another terminal:
 
 ```sh
 cd ~/your-work-dir
-zen init meeting-coordinator
-cd meeting-coordinator
+zen init api-integration
+cd api-integration
 ```
 
 ## 3. Start both mock APIs
 
-First, from the root of `meeting-coordinator`, download the two OpenAPI specs
+First, from the root of `api-integration`, download the two OpenAPI specs
 that Faker will serve:
 
 ```sh
@@ -55,7 +61,7 @@ done
 The folder should now look like this:
 
 ```
-meeting-coordinator/
+api-integration/
 └── mock-apis/
     └── specs/
         ├── calendar.yaml
@@ -63,7 +69,7 @@ meeting-coordinator/
 ```
 
 Then run the Faker server from `@zenera/faker`, also from the root of
-`meeting-coordinator`:
+`api-integration`:
 
 ```sh
 zen faker serve \
@@ -98,7 +104,7 @@ to the sandbox address above.
 
 ## 4. Replace SPECIFICATION.md
 
-Replace the `SPECIFICATION.md` in `meeting-coordinator` with the contents of
+Replace the `SPECIFICATION.md` in `api-integration` with the contents of
 [this example's SPECIFICATION.md](SPECIFICATION.md).
 
 ## 5. Generate and check the project
@@ -121,10 +127,10 @@ the project loads; it does not prove that either mock API is reachable.
 ## 6. Try the workflow
 
 ```sh
-zen run meeting-coordinator
+zen run api-integration
 ```
 
-Run this from inside the `meeting-coordinator` project folder.
+Run this from inside the `api-integration` project folder.
 
 Try:
 
