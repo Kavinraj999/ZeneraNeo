@@ -1,7 +1,7 @@
 import { readProjectConfig } from '@zenera/neo';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parse } from '../args.ts';
@@ -140,6 +140,7 @@ interface Flags {
     provider?: string;
     model?: string;
     prompt?: string;
+    'prompt-file'?: string;
     agent?: string;
     effort?: string;
     share?: string;
@@ -188,6 +189,7 @@ export const meta: Command = {
         '  --project <name|dir>   Which project to work in. The agent is rooted there.',
         '  --model <ref>          Model for this run, e.g. vertex/gemini-3.8-flash.',
         '  --provider <name>      Force the key to use. Default: the model ref says.',
+        '  --prompt-file <file>   Append this file to the prompt, after any words.',
         '  --agent <name>         A .github/agents/<name>.agent.md.',
         '  --effort <level>       none, minimal, low, medium, high, xhigh or max.',
         '  --allow-tool <list>    Only these: read, shell(git:*), write(README.md).',
@@ -271,6 +273,7 @@ export const meta: Command = {
                 provider: { type: 'string' },
                 model: { type: 'string' },
                 prompt: { type: 'string', short: 'p' },
+                'prompt-file': { type: 'string' },
                 agent: { type: 'string' },
                 effort: { type: 'string' },
                 share: { type: 'string' },
@@ -366,7 +369,9 @@ async function where(
 function refresh(project: Projects.Project): void {
     try {
         const written = editorFiles(project.dir);
-        note(dim(`refreshed ${written.length} editor files in ${project.name}`));
+        if (written.length) {
+            note(dim(`refreshed ${written.length} editor files in ${project.name}`));
+        }
     } catch (err) {
         warn(`could not refresh the editor files — ${(err as Error).message}`);
     }
@@ -405,7 +410,8 @@ async function stored(ctx: Context, values: Flags, args: string[]): Promise<void
     if (name) {
         return await runPrompt(ctx, values, project, name, rest);
     }
-    const question = (values.prompt ?? rest.join(' ')).trim() || (await readStdin());
+    const question =
+        withFile(values, (values.prompt ?? rest.join(' ')).trim()) || (await readStdin());
     if (question) {
         return await go(ctx, values, project, question);
     }
@@ -424,8 +430,26 @@ async function runPrompt(
     if (found.description) {
         note(dim(found.description));
     }
-    const prompt = extra.length > 0 ? `${found.body}\n\n${extra.join(' ')}` : found.body;
+    const prompt = withFile(
+        values,
+        extra.length > 0 ? `${found.body}\n\n${extra.join(' ')}` : found.body,
+    );
     await go(ctx, values, project, prompt, name.replace(/^\//, ''));
+}
+
+/** The prompt with `--prompt-file` after it: text too long, or too awkward to quote, for a word. */
+function withFile(values: Flags, prompt: string): string {
+    const file = values['prompt-file'];
+    if (!file) {
+        return prompt;
+    }
+    let text: string;
+    try {
+        text = readFileSync(resolve(file), 'utf8').trim();
+    } catch {
+        throw usageError(`no prompt file at ${file}`, 'name a file that exists');
+    }
+    return [prompt, text].filter(Boolean).join('\n\n');
 }
 
 async function pickPrompt(ctx: Context, project: Projects.Project): Promise<string> {
@@ -493,7 +517,7 @@ async function resumeRun(ctx: Context, values: Flags, args: string[]): Promise<v
     if (!values['no-refresh']) {
         refresh(project);
     }
-    const message = (values.prompt ?? words.join(' ')).trim() || RESUME_PROMPT;
+    const message = withFile(values, (values.prompt ?? words.join(' ')).trim()) || RESUME_PROMPT;
     await go(ctx, { ...values, resume: session, continue: false }, project, message);
 }
 

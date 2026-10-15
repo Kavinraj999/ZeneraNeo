@@ -108,10 +108,8 @@ async function dispatch(t: Tuning): Promise<void> {
         t.tried.add(c.id);
         const before = resultOf(t, c);
         if (before?.state === 'failed') {
-            // Taken again: until it ends anew it is in progress, not failed. Its analyze session
-            // may be what broke (another model, a dead provider), so the next analysis starts fresh.
+            // Taken again: until it ends anew it is in progress, not failed.
             rmSync(join(t.caseDir(c), 'result.json'), { force: true });
-            rmSync(join(t.caseDir(c), 'session'), { force: true });
             t.event({ what: 'resumed', case: c.id, rev: c.rev, detail: before.reason });
         }
         await t.seat(seat, false);

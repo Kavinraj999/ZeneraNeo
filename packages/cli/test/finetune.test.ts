@@ -811,31 +811,53 @@ describe('zen meta finetune', () => {
         );
     });
 
-    it('follows the analysis to the new session the meta agent started, after a model change', async () => {
+    it('keeps the session the meta agent started in the try folder, after a model change', async () => {
         await dataset(['a1']);
         const fresh = '11111111-2222-3333-4444-555555555555';
         const fake = fakeZen((_c, _p, attempt, applies) =>
             attempt === 1 && applies === 0 ? { done: false, newSession: fresh } : { done: true },
         );
         await start(fake.zen, '-N', '1');
-        const file = join(root, 'finetune', 'cases', 'a1', 'r1', 'session');
+        const file = join(root, 'finetune', 'cases', 'a1', 'r1', '01-nomem', 'session');
         expect(readFileSync(file, 'utf8').trim()).toBe(fresh);
-        const analyses = fake.calls.filter((a) => a.includes('/analyze'));
-        const id = (a: string[]) =>
-            a[a.indexOf(a.includes('--session-id') ? '--session-id' : '--resume') + 1];
-        expect(analyses.length).toBeGreaterThan(1);
-        expect(id(analyses[1])).toBe(fresh);
     });
 
-    it('reuses one analyze session for every try of a case', async () => {
+    it('analyzes every try in a session of its own, from a brief in the prompt', async () => {
         await dataset(['a1']);
         const fake = fakeZen((_c, _p, _a, applies) => ({ done: applies > 0 }));
         await start(fake.zen, '-N', '1');
         const analyses = fake.calls.filter((a) => a.includes('/analyze'));
-        const ids = analyses.map(
-            (a) => a[a.indexOf(a.includes('--session-id') ? '--session-id' : '--resume') + 1],
-        );
-        expect(new Set(ids).size).toBe(1);
+        expect(analyses.length).toBeGreaterThan(1);
+        const ids = analyses.map((a) => a[a.indexOf('--session-id') + 1]);
+        expect(new Set(ids).size).toBe(analyses.length);
+        const second = analyses[1];
+        const brief = second[second.indexOf('--prompt-file') + 1];
+        expect(brief).toBe(join(root, 'finetune', 'cases', 'a1', 'r1', '02-nomem', 'brief.md'));
+        const text = readFileSync(brief, 'utf8');
+        expect(text).toContain('## The brief');
+        const tryDir = dirname(brief);
+        expect(existsSync(join(tryDir, 'ask'))).toBe(true);
+        expect(text).toContain(`\`${join(tryDir, 'ask')}/<node>-<topic>.md\``);
+        expect(text).toContain(`\`${join(tryDir, 'feedback.json')}\`, not written yet`);
+        expect(text).toContain('> zen inspect graph --dir');
+        expect(text).toContain('> cat agents.yaml');
+        expect(text).toContain('#### no memory, try 1 - wrong, rubric 0/1');
+        expect(text).toContain('What changed in agents.yaml and agents/ since the last try');
+        expect(fake.calls).toContainEqual(['meta', 'dataset', 'show', 'a1@1', '--json']);
+        const out: string[] = [];
+        const write = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+            out.push(String(chunk));
+            return true;
+        });
+        try {
+            await runFinetune(
+                { args: ['session', 'a1'], json: false, cwd: root },
+                { dir: root, name: 'acme' },
+            );
+        } finally {
+            write.mockRestore();
+        }
+        expect(out.join('')).toContain(`zen meta resume acme ${ids.at(-1)}`);
     });
 
     it('carries on where it stopped, repeating nothing that finished', async () => {

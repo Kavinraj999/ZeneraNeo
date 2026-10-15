@@ -74,8 +74,12 @@ tries used up  ->  difficult
   `--merge-every` kept memories are merged, with the last merge, into
   `memories/merged/mNN/` - numbered, never rewritten, each listing the cases it
   holds. Whatever is left is merged when the tuning ends.
-- **Each case keeps one analyze session**, so every analysis of it remembers
-  the earlier tries. `session <case>` prints the command to resume it.
+- **Each analysis starts from a brief.** The loop runs what every analysis
+  reads - the case, the graph, the run's files, the prose, the earlier tries
+  and the diff since the last one - writes it to the try's `brief.md`, and
+  hands it to `/analyze` in the prompt (`zen meta run --prompt-file`). Each try
+  is analyzed in a session of its own; `session <case>` prints the command to
+  resume the latest one.
 - **Stop and resume freely.** `stop` (or Ctrl-C once) lets the steps in flight
   finish, then exits; Ctrl-C twice kills them. `start` again carries on: every
   step's result is on disk, and nothing finished is repeated.
@@ -98,10 +102,10 @@ finetune/
     cases/<id>/
         FEEDBACK.md      that case: rubric, latest analysis, decisions, history, metrics
                          of every try and how they moved - generated
-        r<rev>/session   its analyze session
         r<rev>/result.json            completed or difficult, once it ends
         r<rev>/<NN>-<nomem|mem>/      one try: request.json, run.json, memory/,
-                                      feedback.json, analysis.md, run.log, analyze.log
+                                      brief.md, session, feedback.json, analysis.md,
+                                      run.log, analyze.log
     applies/<NNN>/       APPLY.md (generated), inputs.json, deferred.json, budget.json,
                          growth.json, gate.json, apply.log, check.log, changes.md,
                          decisions.json, diff.patch, cost.md; budget.md when an

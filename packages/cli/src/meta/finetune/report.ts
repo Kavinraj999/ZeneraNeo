@@ -89,6 +89,15 @@ export function since(ms: number): string {
     return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
+/** The analyze session of one try, kept in its folder. */
+export function analyzeSession(dir: string): string | undefined {
+    try {
+        return readFileSync(join(dir, 'session'), 'utf8').trim() || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export function attemptsOf(t: Tuning, c: Case): Attempt[] {
     const dir = t.caseDir(c);
     let names: string[] = [];
@@ -180,7 +189,7 @@ function tokenTable(by: ByStage): string[] {
     ];
 }
 
-const rubricScore = (f: Attempt['feedback']): string => {
+export const rubricScore = (f: Attempt['feedback']): string => {
     const r = Object.values(f?.rubric ?? {});
     return r.length ? `${r.filter((x) => x === 'pass').length}/${r.length}` : '-';
 };
@@ -502,9 +511,10 @@ export function writeFeedback(t: Tuning, c: Case): void {
     const attempts = attemptsOf(t, c);
     const latest = [...attempts].reverse().find((a) => a.feedback);
     const decided = decisions(t);
-    const session = existsSync(join(t.caseDir(c), 'session'))
-        ? readFileSync(join(t.caseDir(c), 'session'), 'utf8').trim()
-        : undefined;
+    const session = [...attempts]
+        .reverse()
+        .map((a) => analyzeSession(a.dir))
+        .find(Boolean);
     const lines: string[] = [];
     const say = (...more: string[]): void => {
         lines.push(...more);
@@ -663,7 +673,7 @@ export function writeFeedback(t: Tuning, c: Case): void {
 // ---------------------------------------------------------------------------
 
 /** A fence longer than any run of backticks in `text`, so nothing inside can close it. */
-function fence(text: string): string {
+export function fence(text: string): string {
     const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((r) => r.length));
     return '`'.repeat(Math.max(3, longest + 1));
 }
@@ -1586,9 +1596,7 @@ export function writeStatus(t: Tuning): void {
         }
         const dir = t.workDir({ ...w, case: w.case });
         const run = readJson<Run>(join(dir, 'run.json'));
-        const session = existsSync(join(t.caseDir(w.case), 'session'))
-            ? readFileSync(join(t.caseDir(w.case), 'session'), 'utf8').trim()
-            : undefined;
+        const session = analyzeSession(dir);
         const phase = w.recheck
             ? `recheck after ${w.recheck.apply}`
             : PHASE_WORD[w.phase ?? 'nomem'];
@@ -1598,7 +1606,7 @@ export function writeStatus(t: Tuning): void {
               ? t.config.memTries
               : t.config.tries;
         out.push(
-            `| ${w.slot} | ${link(w.case.id, here, feedbackPath(t, w.case))} | ${cell(w.case.class)} | ${phase} | ${w.attempt} / ${tries} | ${w.step} | ${since(Date.now() - w.since)} | ${run ? `${link('run', here, run.dir)}${run.report ? ` · ${link('report', here, run.report)}` : ''}` : '-'} | ${existsSync(join(dir, 'analysis.md')) ? link('analysis', here, join(dir, 'analysis.md')) : '-'} | ${session && !w.recheck ? `\`zen meta resume ${basename(t.root)} ${session}\`` : '-'} |`,
+            `| ${w.slot} | ${link(w.case.id, here, feedbackPath(t, w.case))} | ${cell(w.case.class)} | ${phase} | ${w.attempt} / ${tries} | ${w.step} | ${since(Date.now() - w.since)} | ${run ? `${link('run', here, run.dir)}${run.report ? ` · ${link('report', here, run.report)}` : ''}` : '-'} | ${existsSync(join(dir, 'analysis.md')) ? link('analysis', here, join(dir, 'analysis.md')) : '-'} | ${session ? `\`zen meta resume ${basename(t.root)} ${session}\`` : '-'} |`,
         );
     }
     for (const w of t.workers) {
@@ -1750,7 +1758,7 @@ export function writeStatus(t: Tuning): void {
         '## Files',
         '',
         '- `cases/<id>/FEEDBACK.md` - one case: rubric, latest analysis, decisions, history',
-        '- `cases/<id>/r<rev>/<NN>-<phase>/` - one try: `request.json`, `run.json`, `memory/`, `workspace/`, `feedback.json`, `analysis.md`, logs',
+        '- `cases/<id>/r<rev>/<NN>-<phase>/` - one try: `request.json`, `run.json`, `memory/`, `workspace/`, `brief.md`, `feedback.json`, `analysis.md`, logs',
         '- `applies/<NNN>/APPLY.md` - one apply: requests, decisions, files changed with their diffs, zen check',
         '- `applies/<NNN>/` - `inputs.json`, `apply.log`, `check.log`, `changes.md`, `decisions.json`, `diff.patch`',
         '- `memories/` - `submissions.jsonl`, `merges.jsonl`, `submitted/<case>@r<rev>/`, `merged/mNN/`',
