@@ -41,30 +41,38 @@ cd meeting-coordinator
 
 ## 3. Start both mock APIs
 
-1. In the root of `meeting-coordinator`, create a `mock-apis/specs` folder.
-2. Copy `calendar.yaml` and `mail.yaml` from
-   [`examples/mock-apis/specs`](../../mock-apis/specs) into it, so the folder
-   looks like this:
+First, from the root of `meeting-coordinator`, download the two OpenAPI specs
+that Faker will serve:
 
-    ```
-    meeting-coordinator/
-    └── mock-apis/
-        └── specs/
-            ├── calendar.yaml
-            └── mail.yaml
-    ```
+```sh
+mkdir -p mock-apis/specs
+for f in calendar mail; do
+  curl -fsSL -o "mock-apis/specs/$f.yaml" \
+    "https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/examples/mock-apis/specs/$f.yaml"
+done
+```
 
-3. From the root of `meeting-coordinator`, run the Faker server from
-   `@zenera/faker`:
+The folder should now look like this:
 
-    ```sh
-    zen faker serve \
-      mock-apis/specs/calendar.yaml \
-      mock-apis/specs/mail.yaml \
-      --host 0.0.0.0 \
-      --port 8787 \
-      --requests-dir .tmp/faker-requests
-    ```
+```
+meeting-coordinator/
+└── mock-apis/
+    └── specs/
+        ├── calendar.yaml
+        └── mail.yaml
+```
+
+Then run the Faker server from `@zenera/faker`, also from the root of
+`meeting-coordinator`:
+
+```sh
+zen faker serve \
+  mock-apis/specs/calendar.yaml \
+  mock-apis/specs/mail.yaml \
+  --host 0.0.0.0 \
+  --port 8787 \
+  --requests-dir .tmp/faker-requests
+```
 
 Faker serves both specs from one mock server. The first request to an operation
 may take a little longer while Faker writes and validates that operation's
@@ -95,13 +103,13 @@ Replace the `SPECIFICATION.md` in `meeting-coordinator` with the contents of
 
 ## 5. Generate and check the project
 
-From the project folder, run `/spec-sync-project` in your editor's agent chat.
+From the project folder, run `zen meta run /spec-sync-project` in your editor's agent chat.
 It should generate the project agents and the small API integrations that call
 the Mail and Calendar endpoints from the sandbox. The project specification
 defines the API base URLs and the behaviors the integrations must follow.
 
 Review any `SPECIFICATION-FEEDBACK.md` it creates, apply your answers with
-`/spec-apply-feedback`, and sync again. Then verify the project:
+`zen meta run /spec-apply-feedback`, and sync again. Then verify the project:
 
 ```sh
 zen check

@@ -47,7 +47,7 @@ integration scripts. No other agent is needed.
 ## Integrations
 
 The project keeps copies of both OpenAPI contracts in the `mock-apis/spec`:
-`mock-apis/spec/calendar.yaml` and `mock-apis/spec/mail.yaml`. The mock server starts separately with command (already running):
+`mock-apis/specs/calendar.yaml` and `mock-apis/specs/mail.yaml`. The mock server is already started (you do not run it):
 
 ```sh
 zen faker serve \
@@ -75,7 +75,6 @@ fields or silently substitute an endpoint when a call fails.
 
 - The mock service is started separately with both OpenAPI documents. It is not
   part of the generated project's lifecycle.
-- The copies under `assets/apis/` must match the documents used to start Faker.
 - Default both API base URLs to `http://host.containers.internal:8787`.
 - The sandbox needs network access to the mock service. The host running Faker
   must listen on an address reachable from the sandbox.
