@@ -103,6 +103,10 @@ const ACCENTS = {
         dark: { accent: '#a371f7', accentShade: '#7c4ddb' },
         light: { accent: '#8250df', accentShade: '#5a32a3' },
     },
+    pink: {
+        dark: { accent: '#ff87d7', accentShade: '#d75faf' },
+        light: { accent: '#bf3989', accentShade: '#99286e' },
+    },
 };
 
 /** An ANSI line as `{ char, role }` cells — the escape codes carry the tone. */
@@ -168,6 +172,7 @@ const WORDMARKS = [
     { file: 'banner-cli', accent: 'orange', text: { ...NEO_BANNER, accent: 'CLI' } },
     { file: 'banner-rag', accent: 'green', text: { ...NEO_BANNER, accent: 'Rag' } },
     { file: 'banner-faker', accent: 'violet', text: { ...NEO_BANNER, accent: 'Faker' } },
+    { file: 'banner-view', accent: 'pink', text: { ...NEO_BANNER, accent: 'View' } },
 ];
 
 for (const { file, accent, text } of WORDMARKS) {
