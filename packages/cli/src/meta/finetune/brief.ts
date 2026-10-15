@@ -3,6 +3,7 @@ import { existsSync, globSync, readFileSync } from 'node:fs';
 import { extname, isAbsolute, join, relative } from 'node:path';
 import { promisify } from 'node:util';
 import type { ProjectReport } from '../host.ts';
+import { bindingOf, visibleTo } from './cost.ts';
 import type { Phase } from './feedback.ts';
 import { fence } from './report.ts';
 import type { Tuning } from './tuning.ts';
@@ -201,8 +202,24 @@ export async function renderBrief<B extends Brief>(
     return `${out.join('\n')}\n`;
 }
 
-/** The skill index as the agents see it - a section both briefs show. */
+/** Which skills each agent can load and which it preloads, then the index - a section both briefs show. */
 export async function skillIndex(b: Brief): Promise<Maybe<string>> {
-    const entries = (await b.project())?.skills.entries ?? [];
-    return entries.map((s) => `- \`${s.name}\` (${s.path}): ${s.description}`).join('\n');
+    const report = await b.project();
+    const entries = report?.skills.entries ?? [];
+    if (!report || entries.length === 0) {
+        return undefined;
+    }
+    const list = (xs: string[] | undefined): string =>
+        xs?.length ? xs.map((x) => `\`${x}\``).join(', ') : '-';
+    return [
+        '| Agent | Discovery | Preloaded | Can load |',
+        '| --- | --- | --- | --- |',
+        ...report.agents.map((a) => {
+            const binding = bindingOf(a);
+            const seen = visibleTo(binding, entries).map((s) => s.name);
+            return `| ${a.name} | ${binding.discovery} | ${list(binding.preload)} | ${list(seen)} |`;
+        }),
+        '',
+        ...entries.map((s) => `- \`${s.name}\` (${s.path}): ${s.description}`),
+    ].join('\n');
 }

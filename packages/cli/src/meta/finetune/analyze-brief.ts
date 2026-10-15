@@ -69,7 +69,7 @@ export const ANALYZE_BRIEF: Step<AnalyzeBrief>[] = [
     {
         cat: (b) => files(b, 'agents/*instructions.md').filter((f) => !SHARED_RULES.includes(f)),
     },
-    { title: 'The skills, as the agents see them in their index', fn: skillIndex },
+    { title: 'Skills: which agent can load which, and the index', fn: skillIndex },
     // Last: the largest, and the agent can read a left-out prompt itself.
     { cat: (b) => files(b, 'agents/prompts/*.md'), max: 40_000 },
 ];

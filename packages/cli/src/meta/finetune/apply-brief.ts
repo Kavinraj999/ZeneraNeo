@@ -265,7 +265,7 @@ export const APPLY_BRIEF: Step<ApplyBrief>[] = [
     { title: 'Earlier tries of these cases', fn: earlier },
     { cat: (b) => [join(b.dir, 'budget.json')] },
     { title: 'Growth', fn: growth },
-    { title: 'The skills, as the agents see them in their index', fn: skillIndex },
+    { title: 'Skills: which agent can load which, and the index', fn: skillIndex },
     {
         cat: (b) =>
             files(b, 'agents/*instructions.md').filter(
