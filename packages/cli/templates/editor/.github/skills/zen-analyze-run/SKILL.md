@@ -49,9 +49,23 @@ read whichever run is newest, and that changes under you.
   `zen meta dataset show <id>@<rev>` (`<id>` alone for a batch case). Copy
   its rubric lines with their ids (`r1`, `r2`, ...), its `expected` and its
   `input` into your notes. They are the standard.
-- Otherwise: the sections of `SPECIFICATION.md` that cover what `input.md`
-  asks. With no specification, the request itself is the only standard - say
-  so in the report.
+- No rubric: the standard is **grounding**. The run answered what
+  `input.md` asked, and every specific claim in `output.md` - a name, an id,
+  a number, a version, an endpoint, a path - appears in a tool result of the
+  run. Whether that source was itself true is not yours to judge.
+
+**You grade the record, never the world.** You are not a second solver: you
+do not find out what the right answer is, you check the run against the
+standard above using its nodes. So, during an analysis:
+
+- The only commands that reach outside the run are `zen memory search`,
+  `zen rag docs search` and `zen rag schema search` - to check whether
+  something the run needed was findable.
+- Never run `python3`, `node`, `curl`, `wget` or anything under the run's
+  `workspace/`, never call the project's APIs or services, never run
+  `zen run`, and never read the project's `resources/` or reference
+  material for the answer. Every response, script output and search result
+  the run got is already a tool result in its nodes: open those.
 
 ## 2. Load the skills - in one response
 
@@ -121,17 +135,29 @@ names a script path or says "saved" is not a commit. Both memory areas are
 
 ### Correctness - first
 
-Against the standard from §1. Grade every rubric line `pass` or `fail`, each
-with the node that shows it: a line naming a call passes by that call in the
-graph with sensible arguments, not by the answer claiming it was made. A line
-the run gives no evidence for is a `fail`. With no rubric, grade the
-specification's requirements for this kind of request the same way. Then
-compare `output.md` with `expected`, when there is one.
+Against the standard from §1, from the nodes alone. Grade every rubric line,
+each with the node that shows it:
 
-Any `fail` makes the run wrong, and that is the first finding of the report -
-every cost finding below comes second to it. A rubric line or a specification
-that is itself ambiguous, or that contradicts a prompt, is a finding too: Kind
-`specification` in §6.
+- `pass` - the run shows it: a line naming a call passes by that call in the
+  graph with sensible arguments, not by the answer claiming it was made. A
+  line about behaviour ("sorts on the server") passes by that behaviour in
+  whatever language or tool the run used.
+- `fail` - the run shows the opposite, or gives no evidence for it.
+- `invalid` - the line itself is broken: it says how one implementation did
+  it - a language, a helper or variable name, a library call - rather than
+  what a right answer is, or it cannot be checked from any run. Each
+  `invalid` line needs a `specification` improvement that names its id and
+  says how it should read. It never counts against the run.
+
+With no rubric, grade grounding: name each claim of `output.md` you checked
+and the node it came from. A claim with no source node is a hallucination,
+and the run is wrong. Then compare `output.md` with `expected`, when there is
+one.
+
+Any `fail` or hallucination makes the run wrong, and that is the first
+finding of the report - every cost finding below comes second to it. A
+rubric line that is ambiguous, or that contradicts a prompt, is a finding
+too: Kind `specification` in §6.
 
 ### Memory - used, not discarded
 
@@ -432,10 +458,12 @@ section.
 
 1. **Grade against the case** - the rubric you graded under Correctness in §4,
    from the `zen meta dataset show <id>@<rev>` of §1. Every rubric id gets
-   `pass` or `fail` in the file, judged from the trajectory alone; a line you
-   cannot check from the run is a `fail`, and say why in the report. The loop
-   refuses a file that leaves an id out, and `done` is never true while any
-   line is `fail`.
+   `pass`, `fail` or `invalid` in the file, judged from the trajectory alone.
+   A line the run gives no evidence for is a `fail`; a line no run could be
+   checked against, or that names one implementation's details, is `invalid`.
+   The loop refuses a file that leaves an id out, or that grades a line
+   `invalid` with no `specification` improvement naming that id, and `done` is
+   never true while any line is `fail`.
 2. **Compare with the last try.** In the brief, `Earlier tries of this case`
    holds each earlier try's verdict, summary and improvements with what the
    applies decided; the section after it holds the diff of `agents.yaml` and
@@ -465,7 +493,7 @@ section.
 ```json
 {
     "verdict": "right",
-    "rubric": { "r1": "pass", "r2": "fail" },
+    "rubric": { "r1": "pass", "r2": "fail", "r3": "invalid" },
     "done": false,
     "summary": "The agent answered right: ...\n\nIt took the long way: ...\n\nMemory: ...",
     "improvements": [
@@ -522,16 +550,19 @@ section.
   Grade nothing else and leave `improvements` empty: the loop sets the run
   aside and runs the try again, and a file that says `void` without `infra` is
   refused.
-- `done` is `true` only when the verdict is `right`, every rubric line passes,
-  and you found nothing left worth changing. A `right` run with every rubric
-  line passing is `done: true` unless a cost finding would save **at least 2
+- `done` is `true` only when the verdict is `right`, no rubric line is
+  `fail`, and you found nothing left worth changing in the prose. `invalid`
+  lines and `specification` improvements are for the dataset: they never keep
+  a run from being done, and no apply reads them. A `right` run with no
+  `fail` is `done: true` unless a cost finding would save **at least 2
   LLM calls or a quarter of the run's tokens**, with the node ids that show
   it. A smaller saving goes in the report, not in `improvements`: every rule
   is read by every later call, so a rule that saves one call costs more than
   it saves.
 - `done: false` on a `right` or `wrong` verdict needs at least one
-  improvement: without one the next try runs on the same prose and learns
-  nothing.
+  improvement that is not `specification`: without one the next try runs on
+  the same prose and learns nothing. A wrong run whose only findings are
+  `specification` ends the case as difficult - the prose cannot fix a rubric.
 - An improvement is for a **class** of requests. One that only makes sense
   for this case's data is not an improvement - what a case needs to know about
   its own data is memory's job. A procedure only some kinds of request need

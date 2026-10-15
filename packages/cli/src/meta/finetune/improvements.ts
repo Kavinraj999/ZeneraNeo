@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, join } from 'node:path';
 import { type Cost, costChanges, type Gate, limits, measure, overLimits } from './cost.ts';
 import { errorIn, sizeOf } from './failure.ts';
-import type { Feedback, Improvement } from './feedback.ts';
+import { type Feedback, forProse, type Improvement } from './feedback.ts';
 import { patchFiles, writeApply } from './report.ts';
 import type { Run } from './train.ts';
 import { readJson, type Seat, Stopped, type Tuning } from './tuning.ts';
@@ -226,7 +226,7 @@ export class Improvements {
             case: feedback.case,
             phase: feedback.phase,
             attempt: feedback.attempt,
-            detail: `${feedback.improvements.length} improvement(s), worker freed`,
+            detail: `${forProse(feedback).length} improvement(s), worker freed`,
         });
         this.#t.unseat(s);
         try {
@@ -354,6 +354,7 @@ export class Improvements {
                     const { dir: _, ...rest } = f;
                     return {
                         ...rest,
+                        improvements: forProse(f),
                         file: join(at, 'feedback.json'),
                         ...(missed?.length ? { missedSkills: missed } : {}),
                     };
@@ -363,7 +364,7 @@ export class Improvements {
             )}\n`,
         );
         writeFileSync(join(dir, 'deferred.json'), `${JSON.stringify(this.deferred(), null, 2)}\n`);
-        const total = batch.reduce((n, f) => n + f.improvements.length, 0);
+        const total = batch.reduce((n, f) => n + forProse(f).length, 0);
         this.current = { since: Date.now(), name, dir, requests: batch.length };
         let to = from;
         let discarded: string | undefined;

@@ -11,7 +11,14 @@ import { basename, dirname, join, relative, sep } from 'node:path';
 import { safe } from '../host.ts';
 import { DatasetStore } from './dataset/store.ts';
 import { type Case, DATASET_DIR } from './dataset/types.ts';
-import { type Feedback, feedbackId, lead, type Phase, readFeedback } from './feedback.ts';
+import {
+    type Feedback,
+    feedbackId,
+    forDataset,
+    lead,
+    type Phase,
+    readFeedback,
+} from './feedback.ts';
 import type { AppliedFile, Decisions, Deferred } from './improvements.ts';
 import { type Recheck, RECHECK_TRIES } from './recheck.ts';
 import { resultOf, selection } from './sampler.ts';
@@ -191,7 +198,12 @@ function tokenTable(by: ByStage): string[] {
 
 export const rubricScore = (f: Attempt['feedback']): string => {
     const r = Object.values(f?.rubric ?? {});
-    return r.length ? `${r.filter((x) => x === 'pass').length}/${r.length}` : '-';
+    const invalid = r.filter((x) => x === 'invalid').length;
+    const graded = r.length - invalid;
+    if (!r.length) {
+        return '-';
+    }
+    return `${r.filter((x) => x === 'pass').length}/${graded}${invalid ? ` (${invalid} invalid)` : ''}`;
 };
 
 // ---------------------------------------------------------------------------
@@ -576,11 +588,13 @@ export function writeFeedback(t: Tuning, c: Case): void {
             );
             for (const i of improvements) {
                 const d = decided[id]?.[i.id];
-                const decision = d?.decision
-                    ? `${d.decision}${d.note ? `: ${d.note}` : ''}`
-                    : t.improvements.isApplied(id)
-                      ? 'applied (no decision recorded)'
-                      : 'waiting for an apply';
+                const decision = forDataset(i)
+                    ? 'for the dataset - `zen meta dataset`, never an apply'
+                    : d?.decision
+                      ? `${d.decision}${d.note ? `: ${d.note}` : ''}`
+                      : t.improvements.isApplied(id)
+                        ? 'applied (no decision recorded)'
+                        : 'waiting for an apply';
                 say(`| ${cell(i.id)} | ${cell(i.change)} | ${cell(i.file)} | ${cell(decision)} |`);
             }
             say('');
@@ -1461,6 +1475,7 @@ export function writeStatus(t: Tuning): void {
     };
     const rows: string[] = [];
     const difficult: string[] = [];
+    const rubricProblems: string[] = [];
     const failed: string[] = [];
     let everything: ByStage = {};
     const spent: Record<Phase, { runs: number; f: Flat }> = {
@@ -1552,6 +1567,15 @@ export function writeStatus(t: Tuning): void {
         if (r?.state === 'difficult') {
             difficult.push(
                 `| ${link(c.id, here, feedbackPath(t, c))} | ${PHASE_WORD[r.phase]} | ${cell(r.reason)} | ${r.phase === 'nomem' ? nomem.length : mem.length} | ${stamp(r.at)} | ${cell(lead(last?.feedback?.summary ?? ''))} | ${lastRun(attempts.at(-1))} |`,
+            );
+        }
+        const broken = Object.entries(last?.feedback?.rubric ?? {})
+            .filter(([, g]) => g === 'invalid')
+            .map(([id]) => id);
+        if (broken.length > 0) {
+            const why = (last?.feedback?.improvements ?? []).filter(forDataset);
+            rubricProblems.push(
+                `| ${link(c.id, here, feedbackPath(t, c))} | ${broken.join(', ')} | ${cell(why.map((i) => i.change).join(' / '))} |`,
             );
         }
         if (r?.state === 'failed') {
@@ -1726,6 +1750,18 @@ export function writeStatus(t: Tuning): void {
             '| Case | Phase | Reason | Tries | Difficult since | Last summary | Last run |',
             '| --- | --- | --- | --- | --- | --- | --- |',
             ...difficult,
+            '',
+        );
+    }
+    if (rubricProblems.length > 0) {
+        out.push(
+            '## Rubric problems',
+            '',
+            'Lines the latest analysis graded `invalid`: they say how one implementation did it, not what a right answer is. No apply touches them - fix the case with `zen meta dataset`.',
+            '',
+            '| Case | Lines | What is wrong |',
+            '| --- | --- | --- |',
+            ...rubricProblems,
             '',
         );
     }

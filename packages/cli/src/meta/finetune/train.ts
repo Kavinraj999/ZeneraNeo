@@ -20,8 +20,16 @@ import { batchInput } from './dataset/export.ts';
 import { DatasetStore } from './dataset/store.ts';
 import type { Case } from './dataset/types.ts';
 import { errorIn, sizeOf, StepError } from './failure.ts';
-import { type Feedback, feedbackId, lead, type Phase, readFeedback } from './feedback.ts';
-import { attemptsOf, caseTokens, writeFeedback } from './report.ts';
+import {
+    type Feedback,
+    feedbackId,
+    forDataset,
+    forProse,
+    lead,
+    type Phase,
+    readFeedback,
+} from './feedback.ts';
+import { attemptsOf, caseTokens, rubricScore, writeFeedback } from './report.ts';
 import type { Result } from './sampler.ts';
 import { readJson, type Seat, type Tuning } from './tuning.ts';
 import {
@@ -50,6 +58,10 @@ export async function train(t: Tuning, s: Seat, c: Case): Promise<void> {
             passed = run;
             break;
         }
+        const rubricOnly = datasetOnly(feedback);
+        if (rubricOnly) {
+            return markDifficult(t, c, 'nomem', rubricOnly);
+        }
         if (attempt < t.config.tries) {
             const { structural } = await t.improvements.apply(feedback, s);
             if (structural) {
@@ -69,6 +81,10 @@ export async function train(t: Tuning, s: Seat, c: Case): Promise<void> {
             t.memories.submit(c, attempt, run);
             break;
         }
+        const rubricOnly = datasetOnly(feedback);
+        if (rubricOnly) {
+            return markDifficult(t, c, 'mem', rubricOnly);
+        }
         if (attempt < t.config.memTries) {
             const { structural } = await t.improvements.apply(feedback, s);
             if (structural) {
@@ -81,6 +97,15 @@ export async function train(t: Tuning, s: Seat, c: Case): Promise<void> {
     }
 
     markCompleted(t, c);
+}
+
+/** Not done, and every finding is about the case itself: another try on the same prose learns nothing. */
+function datasetOnly(f: Feedback): string | undefined {
+    const dataset = f.improvements.filter(forDataset);
+    if (dataset.length === 0 || forProse(f).length > 0) {
+        return undefined;
+    }
+    return `specification: ${dataset.map((i) => lead(i.change)).join('; ')}`;
 }
 
 /** A run its analysis finds void is set aside and run again: it says nothing about the prose. */
@@ -343,7 +368,7 @@ async function analyze(
             result:
                 feedback.verdict === 'void'
                     ? `void: ${feedback.infra}`
-                    : `${feedback.verdict}${graded.length ? ` ${graded.filter((g) => g === 'pass').length}/${graded.length}` : ''}${feedback.done ? ', done' : ''}`,
+                    : `${feedback.verdict}${graded.length ? ` ${rubricScore(feedback)}` : ''}${feedback.done ? ', done' : ''}`,
             took: Date.now() - began,
             tokens: spent(envelopesIn(dir, 'analyze')),
         });

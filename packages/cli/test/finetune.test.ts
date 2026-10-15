@@ -88,6 +88,8 @@ interface Verdict {
     newSession?: string;
     /** skills the run loads */
     loads?: string[];
+    /** the rubric line is broken: graded `invalid`, the one finding a `specification` improvement */
+    spec?: boolean;
 }
 
 /** What `zen meta run --json` reports about itself. */
@@ -307,16 +309,21 @@ function fakeZen(
                 word('feedback'),
                 JSON.stringify({
                     verdict: v.done ? 'right' : 'wrong',
-                    rubric: { r1: v.done ? 'pass' : 'fail' },
+                    rubric: { r1: v.spec ? 'invalid' : v.done ? 'pass' : 'fail' },
                     done: v.done,
                     summary: v.done ? 'fine' : 'misses it | badly',
-                    improvements: Array.from(
-                        { length: v.improvements ?? (v.done ? 0 : 1) },
-                        (_, i) => ({
-                            id: `i${i + 1}`,
-                            change: `say it ${i + 1}`,
-                        }),
-                    ),
+                    improvements: v.spec
+                        ? [
+                              {
+                                  id: 'i1',
+                                  kind: 'specification',
+                                  change: 'r1 names one implementation',
+                              },
+                          ]
+                        : Array.from({ length: v.improvements ?? (v.done ? 0 : 1) }, (_, i) => ({
+                              id: `i${i + 1}`,
+                              change: `say it ${i + 1}`,
+                          })),
                 }),
             );
             const answer = join(root, '.tmp', `answer-${calls.length}.md`);
@@ -421,6 +428,22 @@ describe('feedback', () => {
         });
         const r = read({ verdict: 'void', done: false, rubric: {}, infra: 'n4: no DNS' });
         expect('feedback' in r && r.feedback.infra).toBe('n4: no DNS');
+    });
+
+    // A rubric that says how one implementation did it is the dataset's fault, not the run's.
+    it('takes an invalid rubric line only with a specification improvement naming it', () => {
+        const rubric = { r1: 'pass', r2: 'invalid' };
+        expect(read({ verdict: 'right', done: true, rubric })).toEqual({
+            problem: expect.stringContaining('rubric lines r2 are graded "invalid"'),
+        });
+        const spec = { id: 'i1', kind: 'specification', change: 'r2 names a JS helper' };
+        const r = read({ verdict: 'right', done: false, rubric, improvements: [spec] });
+        expect('feedback' in r && r.feedback.rubric.r2).toBe('invalid');
+        // Nothing is left for the prose, so the run is done whatever the file said.
+        expect('feedback' in r && r.feedback.done).toBe(true);
+        const prose = { id: 'i2', kind: 'prompt', change: 'say it' };
+        const more = read({ verdict: 'right', done: false, rubric, improvements: [spec, prose] });
+        expect('feedback' in more && more.feedback.done).toBe(false);
     });
 });
 
@@ -1358,6 +1381,24 @@ describe('what an apply may cost', () => {
             reason: 'structural: needs a tool in agents.yaml',
         });
         expect(runsOf(fake.calls, 'a1')).toHaveLength(1);
+    });
+
+    it('ends a case whose only finding is a broken rubric, without an apply', async () => {
+        await dataset(['a1']);
+        const fake = fakeZen(() => ({ done: false, spec: true }));
+        await start(fake.zen, '-N', '1');
+        expect(result('a1')).toMatchObject({
+            state: 'difficult',
+            reason: 'specification: r1 names one implementation',
+        });
+        expect(fake.applies).toBe(0);
+        expect(runsOf(fake.calls, 'a1')).toHaveLength(1);
+        const status = readFileSync(join(root, 'finetune', 'STATUS.md'), 'utf8');
+        expect(status).toContain('## Rubric problems');
+        expect(status).toMatch(/\| r1 \| r1 names one implementation \|/);
+        const page = readFileSync(join(root, 'finetune', 'cases', 'a1', 'FEEDBACK.md'), 'utf8');
+        expect(page).toContain('rubric 0/0 (1 invalid)');
+        expect(page).toContain('for the dataset');
     });
 
     it('tells the analysis when a case never loaded the skill an apply made for it', async () => {

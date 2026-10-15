@@ -29,8 +29,8 @@ import type { Tuning } from './tuning.ts';
 // `b.systemDir` is the copy of agents.yaml and agents/ the run read - the
 // system version it ran on, under finetune/systems/vNN/ - so an apply made
 // since cannot change what the analysis sees. Anything else (the run's
-// folder, SPECIFICATION.md) is named by an absolute path: `b.run.dir`,
-// `b.t.root`.
+// folder, a recheck's patch) is named by an absolute path: `b.run.dir`,
+// `b.recheck`.
 //
 // Order is priority: past BRIEF_MAX bytes the remaining entries are named but
 // left out, for the agent to run itself. `max` cuts one entry's output.
@@ -93,10 +93,6 @@ export const BRIEF: Step[] = [
         cat: (b) => files(b, 'agents/*instructions.md').filter((f) => !SHARED_RULES.includes(f)),
     },
     { title: 'The skills, as the agents see them in their index', fn: skillIndex },
-    // Not in a system snapshot: read from the project root.
-    {
-        cat: (b) => (b.case.rubric.length === 0 ? [join(b.t.root, 'SPECIFICATION.md')] : undefined),
-    },
     // Last: the largest, and the agent can read a left-out prompt itself.
     { cat: (b) => files(b, 'agents/prompts/*.md'), max: 40_000 },
 ];

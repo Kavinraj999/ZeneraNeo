@@ -64,6 +64,12 @@ tries used up  ->  difficult
 - **Prose cannot fix everything.** When all an apply could say of a request is
   `structural` - a tool, a skill binding, the dataset - the case is difficult
   at once, reason `structural: ...`, instead of trying again on the same prose.
+- **A broken rubric is the dataset's to fix.** The analysis grades a line
+  `invalid` when it says how one implementation did it rather than what is
+  right, with a `specification` improvement saying how it should read. No
+  apply sees those, an `invalid` line never keeps a case from completing, and
+  a case whose only findings are `specification` is difficult at once, reason
+  `specification: ...`. STATUS.md lists them under **Rubric problems**.
 - **A skill must be loaded.** When an apply makes or changes a skill for a
   case, the case's next run must load it. If it does not, the run says so
   (`missedSkills`), the analysis is told (`missed-skills=`), and the next apply
