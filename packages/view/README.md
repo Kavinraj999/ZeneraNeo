@@ -1,8 +1,5 @@
 <div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-view-dark.svg">
-  <img src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-view-light.svg" alt="ZENERA VIEW" width="747">
-</picture>
+<img src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-view.svg" alt="ZENERA VIEW" width="747">
 
 [![npm](https://img.shields.io/npm/v/@zenera/view.svg)](https://www.npmjs.com/package/@zenera/view)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/andreyryabov/ZeneraNeo/blob/main/LICENSE)
