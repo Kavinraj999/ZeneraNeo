@@ -1081,6 +1081,7 @@ const liveRow = (t: Tuning, w: Worker) =>
 
 const applierNow = (t: Tuning): string | undefined =>
     t.live?.now.find((r) => r.key === 'apply')?.now;
+
 function idleWord(t: Tuning): string {
     if (t.improvements.applying) {
         return 'idle - no run starts during an apply';
@@ -1812,9 +1813,7 @@ export function writeStatus(t: Tuning, live = false): void {
     ];
     for (const w of t.workers) {
         if (!w.case) {
-            out.push(
-                `| ${w.slot} | - | - | - | - | ${idleWord(t)} | ${since(Date.now() - w.since)} | - | - | - | - |`,
-            );
+            out.push(`| ${w.slot} | - | - | - | - | ${idleWord(t)} | - | - | - | - | - |`);
             continue;
         }
         const dir = t.workDir({ ...w, case: w.case });
