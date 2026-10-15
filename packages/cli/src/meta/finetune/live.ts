@@ -40,6 +40,10 @@ export interface Activity {
     last?: string;
     /** said since the last tool call */
     said?: string;
+    /** what the agent is doing now: `says: …`, `thinks: …` or `runs: …` */
+    now?: string;
+    /** the last few `now` lines, oldest first */
+    recent: string[];
     /** the latest lines, oldest first */
     lines: EventLine[];
 }
@@ -53,6 +57,10 @@ export interface NowRow {
     sinceMs: number;
     stage?: Stage;
     act?: Activity;
+    /** what it is doing now, in one line */
+    now?: string;
+    /** the last few such lines, oldest first */
+    recent?: string[];
 }
 
 export interface TokenRow extends ModelSpend {
@@ -94,8 +102,29 @@ const KEEP_ERRORS = 5;
 const PHASE_WORD: Record<Phase, string> = { nomem: 'no memory', mem: 'with memory' };
 /** Not log rows: a start shows in `now` and ends in an event of its own, an error has its own section. */
 const UNLOGGED = new Set(['run', 'analyze', 'apply', 'memory merge', 'idle', 'error']);
+/** Shell tools: their subject is the command itself. */
+const SHELL = new Set(['bash', 'run_command', 'run_command_background']);
+/** What the applier runs once the agent is done. */
+export const CHECK_NOW = 'runs: zen check --no-models --no-sandbox';
+/** `now` lines a step keeps. */
+export const KEEP_NOW = 6;
 
-const blank = (): Activity => ({ calls: 0, input: 0, output: 0, byModel: {}, lines: [] });
+const blank = (): Activity => ({
+    calls: 0,
+    input: 0,
+    output: 0,
+    byModel: {},
+    recent: [],
+    lines: [],
+});
+
+function doing(a: Activity, line: string): void {
+    a.now = line;
+    a.recent.push(line);
+    if (a.recent.length > KEEP_NOW) {
+        a.recent.shift();
+    }
+}
 
 function fold(a: Activity, text: string): void {
     let e: EventLine;
@@ -122,10 +151,12 @@ function fold(a: Activity, text: string): void {
         const tool = `${e.name} ${e.subject}`.trim();
         a.last = a.said ? `${a.said} · ${tool}` : tool;
         a.said = undefined;
+        doing(a, `runs: ${SHELL.has(e.name) && e.subject ? e.subject : tool}`);
     } else if (e.type === 'say' || e.type === 'think') {
         // A call's thought comes before what it said, so the words win.
         a.said = e.text;
         a.last = e.text;
+        doing(a, `${e.type === 'say' ? 'says' : 'thinks'}: ${e.text}`);
     }
 }
 
@@ -216,6 +247,7 @@ export function snapshot(t: Tuning): Snapshot {
             continue;
         }
         const dir = t.workDir({ ...w, case: w.case });
+        const act = watch(join(dir, w.step === 'run' ? 'events.jsonl' : 'analyze.events.jsonl'));
         now.push({
             key: `w${w.slot}`,
             who: `worker ${w.slot}`,
@@ -223,19 +255,25 @@ export function snapshot(t: Tuning): Snapshot {
             what: `${w.case.id} · ${w.recheck ? 'recheck' : PHASE_WORD[w.phase ?? 'nomem']} try ${w.attempt ?? 1}`,
             sinceMs: clock - w.since,
             stage: w.step,
-            act: watch(join(dir, w.step === 'run' ? 'events.jsonl' : 'analyze.events.jsonl')),
+            act,
+            ...(act.now ? { now: act.now, recent: [...act.recent] } : {}),
         });
     }
     const q = t.improvements;
     if (q.current?.dir) {
+        const checking = q.current.step === 'check';
+        const act = watch(join(q.current.dir, 'apply.events.jsonl'));
+        const line = checking ? CHECK_NOW : act.now;
+        const recent = checking ? [...act.recent, CHECK_NOW].slice(-KEEP_NOW) : [...act.recent];
         now.push({
             key: 'apply',
             who: 'applier',
-            step: q.current.step === 'check' ? 'check' : 'apply',
+            step: checking ? 'check' : 'apply',
             what: `apply ${basename(q.current.dir)} · ${q.current.requests} request(s)`,
             sinceMs: clock - q.current.since,
             stage: 'apply',
-            act: watch(join(q.current.dir, 'apply.events.jsonl')),
+            act,
+            ...(line ? { now: line, recent } : {}),
         });
     } else if (q.current) {
         now.push({
@@ -323,6 +361,7 @@ export function publish(t: Tuning): Snapshot | undefined {
         // A live view that failed to draw must not stop the tuning.
         return undefined;
     }
+    t.live = snap;
     for (const watcher of t.watchers) {
         watcher(snap);
     }

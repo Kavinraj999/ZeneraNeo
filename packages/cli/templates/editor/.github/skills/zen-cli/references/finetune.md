@@ -102,7 +102,8 @@ tries used up  ->  difficult
 ```
 finetune/
     STATUS.md            the whole tuning: summary (spend per phase, tuning and memory
-                         effect), workers, queue, applies, cases - generated
+                         effect), workers and what each is doing now, queue, applies,
+                         cases - generated, rewritten every second while it runs
     loop.json            the settings; flags on start update it
     events.jsonl         every step, in order
     cases/<id>/

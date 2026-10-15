@@ -38,7 +38,10 @@ export async function runLoop(t: Tuning): Promise<void> {
     );
     rmSync(t.stopFile, { force: true });
     const timer = setInterval(() => t.report(), REPORT_EVERY_MS);
-    const live = setInterval(() => publish(t), LIVE_EVERY_MS);
+    const live = setInterval(() => {
+        publish(t);
+        t.report(true);
+    }, LIVE_EVERY_MS);
     try {
         await recover(t);
         t.rechecks.resume();
@@ -57,6 +60,7 @@ export async function runLoop(t: Tuning): Promise<void> {
         clearInterval(live);
         t.finished = true;
         publish(t);
+        t.report();
         try {
             unlinkSync(lock);
         } catch {

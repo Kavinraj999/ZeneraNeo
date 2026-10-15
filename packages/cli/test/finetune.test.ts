@@ -1324,6 +1324,37 @@ describe('what an apply may cost', () => {
         );
     });
 
+    it('says what each worker is doing now, escaped in the table and safe in the diagram', async () => {
+        await dataset(['a1']);
+        let page = '';
+        const said =
+            'Look at "x"]) --> EVIL and `code` | pipe **bold** <b> and then a long tail that runs on past every limit there is';
+        const fake = fakeZen((_c, _p, attempt, applies) => {
+            if (attempt === 1 && applies === 0 && !page) {
+                const run = fake.calls.at(-1)!;
+                const at = new Date().toISOString();
+                writeFileSync(
+                    run[run.indexOf('--events') + 1]!,
+                    `${JSON.stringify({ t: at, type: 'think', text: 'Planning' })}\n${JSON.stringify({ t: at, type: 'say', text: said })}\n`,
+                );
+                setTimeout(() => {
+                    page = readFileSync(join(root, 'finetune', 'STATUS.md'), 'utf8');
+                }, 1500);
+                return { done: true, slow: 2500 };
+            }
+            return { done: true };
+        });
+        await start(fake.zen, '-N', '1', '-M', '1', '--force');
+        expect(page).toContain(
+            '| thinks: Planning<br>says: Look at "x"\\]) --\\> EVIL and \\`code\\` \\| pipe \\*\\*bold\\*\\* \\<b\\> and then a long tail',
+        );
+        expect(page).toMatch(/runs on past every limit there is<br> \|\n/);
+        const diagrams = (page.match(/```mermaid[\s\S]*?```/g) ?? []).join('\n');
+        expect(diagrams).toContain('says: Look at x ) -- EVIL and code pipe bold b');
+        expect(diagrams).not.toContain('EVIL and `');
+        expect(diagrams).not.toContain('--> EVIL');
+    }, 15_000);
+
     it('shows a recheck on its worker in the status page and the live view', async () => {
         await dataset(['a1', 'b1']);
         let page = '';
