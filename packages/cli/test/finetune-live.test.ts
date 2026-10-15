@@ -169,7 +169,17 @@ describe('the live view', () => {
                 },
             },
         ],
-        tokens: [{ stage: 'run', model: 'gemini-a', calls: 7, input: 12_000, output: 900 }],
+        tokens: [
+            {
+                stage: 'run',
+                model: 'gemini-a',
+                calls: 7,
+                input: 12_000,
+                cached: 0,
+                output: 900,
+                reasoning: 0,
+            },
+        ],
         log: Array.from({ length: 40 }, (_, i) => ({
             at: '2026-10-08T09:59:00Z',
             action: 'ran',

@@ -1397,9 +1397,18 @@ describe('what an apply may cost', () => {
             if (attempt === 1 && applies === 0 && !page) {
                 const run = fake.calls.at(-1)!;
                 const at = new Date().toISOString();
+                const llm = {
+                    t: at,
+                    type: 'llm',
+                    model: 'vertex/gemini-live',
+                    in: 123,
+                    cached: 0,
+                    out: 4,
+                    reasoning: 0,
+                };
                 writeFileSync(
                     run[run.indexOf('--events') + 1]!,
-                    `${JSON.stringify({ t: at, type: 'think', text: 'Planning' })}\n${JSON.stringify({ t: at, type: 'say', text: said })}\n`,
+                    `${JSON.stringify(llm)}\n${JSON.stringify({ t: at, type: 'think', text: 'Planning' })}\n${JSON.stringify({ t: at, type: 'say', text: said })}\n`,
                 );
                 setTimeout(() => {
                     page = readFileSync(join(root, 'finetune', 'STATUS.md'), 'utf8');
@@ -1417,6 +1426,8 @@ describe('what an apply may cost', () => {
         expect(diagrams).toContain('says: Look at x ) -- EVIL and code pipe bold b');
         expect(diagrams).not.toContain('EVIL and `');
         expect(diagrams).not.toContain('--> EVIL');
+        // The run under way is counted before it writes anything: its worker's table and Tokens.
+        expect(page.match(/\| run \| gemini-live \| 1 \| 123 \|/g)).toHaveLength(2);
     }, 15_000);
 
     it('shows a recheck on its worker in the status page and the live view', async () => {

@@ -11,7 +11,7 @@ import { basename, join } from 'node:path';
 import type { EventLine } from '../host.ts';
 import type { Phase } from './feedback.ts';
 import type { Event, StepFailure, Tuning } from './tuning.ts';
-import { modelName, type Stage, STAGES } from './usage.ts';
+import { modelName, type Stage, STAGES, type Tokens } from './usage.ts';
 
 // ---------------------------------------------------------------------------
 // What is going on right now
@@ -23,11 +23,7 @@ import { modelName, type Stage, STAGES } from './usage.ts';
 // so it costs nothing the loop does not already do.
 // ---------------------------------------------------------------------------
 
-export interface ModelSpend {
-    calls: number;
-    input: number;
-    output: number;
-}
+export type ModelSpend = Tokens;
 
 /** One events file, folded as it grows. */
 export interface Activity {
@@ -143,10 +139,12 @@ function fold(a: Activity, text: string): void {
         a.calls++;
         a.input += e.in;
         a.output += e.out;
-        const m = (a.byModel[model] ??= { calls: 0, input: 0, output: 0 });
+        const m = (a.byModel[model] ??= { calls: 0, input: 0, cached: 0, output: 0, reasoning: 0 });
         m.calls++;
         m.input += e.in;
+        m.cached += e.cached;
         m.output += e.out;
+        m.reasoning += e.reasoning;
     } else if (e.type === 'tool' && e.phase === 'start') {
         const tool = `${e.name} ${e.subject}`.trim();
         a.last = a.said ? `${a.said} · ${tool}` : tool;
@@ -299,10 +297,20 @@ export function snapshot(t: Tuning): Snapshot {
     const sums = new Map<string, TokenRow>();
     const add = (stage: Stage, model: string, s: ModelSpend): void => {
         const key = `${stage}\u0000${model}`;
-        const row = sums.get(key) ?? { stage, model, calls: 0, input: 0, output: 0 };
+        const row = sums.get(key) ?? {
+            stage,
+            model,
+            calls: 0,
+            input: 0,
+            cached: 0,
+            output: 0,
+            reasoning: 0,
+        };
         row.calls += s.calls;
         row.input += s.input;
+        row.cached += s.cached;
         row.output += s.output;
+        row.reasoning += s.reasoning;
         sums.set(key, row);
     };
     for (const stage of STAGES) {

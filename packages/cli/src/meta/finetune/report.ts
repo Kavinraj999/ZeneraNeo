@@ -20,6 +20,7 @@ import {
     readFeedback,
 } from './feedback.ts';
 import type { AppliedFile, Decisions, Deferred } from './improvements.ts';
+import type { NowRow } from './live.ts';
 import { type Recheck, RECHECK_TRIES } from './recheck.ts';
 import { resultOf, selection } from './sampler.ts';
 import type { Run } from './train.ts';
@@ -1079,8 +1080,13 @@ function nowOf(t: Tuning, w: Worker): string | undefined {
 const liveRow = (t: Tuning, w: Worker) =>
     t.live?.now.find((r) => r.key === `w${w.slot}` && r.step === w.step);
 
-const applierNow = (t: Tuning): string | undefined =>
-    t.live?.now.find((r) => r.key === 'apply')?.now;
+const applierRow = (t: Tuning) => t.live?.now.find((r) => r.key === 'apply');
+
+/** What a step under way has spent so far; it reaches the files only when the step ends. */
+const inFlight = (row: NowRow | undefined): ByStage =>
+    row?.stage && row.act ? { [row.stage]: row.act.byModel } : {};
+
+const applierNow = (t: Tuning): string | undefined => applierRow(t)?.now;
 
 function idleWord(t: Tuning): string {
     if (t.improvements.applying) {
@@ -1517,8 +1523,12 @@ interface Slow {
     lastApply: { name: string; dir: string } | undefined;
     /** tokens per case, keyed `<id>@<rev>` */
     byCase: Map<string, ByStage>;
-    /** every section after the improvement queue */
+    /** tokens of every step that ended */
+    spent: ByStage;
+    /** the sections between the improvement queue and Tokens */
     later: string[];
+    /** the sections after Tokens */
+    rest: string[];
 }
 
 function slowStatus(t: Tuning): Slow {
@@ -1707,20 +1717,10 @@ function slowStatus(t: Tuning): Slow {
         apply: mergeModels(...applies.map((a) => applyTokens(a.dir))),
     });
     t.progress = { counts, total: cases.length, spent: allStages };
-    const tokenRows = tokenTable(allStages);
-    if (tokenRows.length > 0) {
-        later.push(
-            '## Tokens',
-            '',
-            'Every try of every case so far, every recheck, and every apply.',
-            '',
-            ...tokenRows,
-        );
-    }
 
-    later.push(...memorySection(t, here));
+    const rest = [...memorySection(t, here)];
 
-    later.push(
+    rest.push(
         '## Cases',
         '',
         '| Case | Class | Rubric | State | Tries without / with | Last verdict | LLM calls without memory | With memory | Memory effect | Run tokens | Analyze tokens | System |',
@@ -1729,7 +1729,7 @@ function slowStatus(t: Tuning): Slow {
         '',
     );
     if (difficult.length > 0) {
-        later.push(
+        rest.push(
             '## Difficult cases',
             '',
             '| Case | Phase | Reason | Tries | Difficult since | Last summary | Last run |',
@@ -1739,7 +1739,7 @@ function slowStatus(t: Tuning): Slow {
         );
     }
     if (rubricProblems.length > 0) {
-        later.push(
+        rest.push(
             '## Rubric problems',
             '',
             'Lines the latest analysis graded `invalid`: they say how one implementation did it, not what a right answer is. No apply touches them - fix the case with `zen meta dataset`.',
@@ -1751,7 +1751,7 @@ function slowStatus(t: Tuning): Slow {
         );
     }
     if (failed.length > 0) {
-        later.push(
+        rest.push(
             '## Failed cases',
             '',
             'Something outside the prose broke - the sandbox, a provider, a key - so these taught nothing. They keep their tries and carry on from the step that failed at the next `zen meta finetune start`.',
@@ -1770,7 +1770,9 @@ function slowStatus(t: Tuning): Slow {
         applies: applies.length,
         lastApply: applies.at(-1),
         byCase,
+        spent: allStages,
         later,
+        rest,
     };
 }
 
@@ -1833,7 +1835,12 @@ export function writeStatus(t: Tuning, live = false): void {
     }
     for (const w of t.workers) {
         const by = w.case
-            ? tokenTable(s.byCase.get(`${w.case.id}@${w.case.rev}`) ?? caseTokens(t, w.case))
+            ? tokenTable(
+                  mergeStages(
+                      s.byCase.get(`${w.case.id}@${w.case.rev}`) ?? caseTokens(t, w.case),
+                      inFlight(liveRow(t, w)),
+                  ),
+              )
             : [];
         if (w.case && by.length > 0) {
             out.push(
@@ -1866,6 +1873,23 @@ export function writeStatus(t: Tuning, live = false): void {
     }
 
     out.push(...s.later);
+    const tokenRows = tokenTable(
+        mergeStages(
+            s.spent,
+            ...t.workers.map((w) => inFlight(liveRow(t, w))),
+            inFlight(t.improvements.current?.dir ? applierRow(t) : undefined),
+        ),
+    );
+    if (tokenRows.length > 0) {
+        out.push(
+            '## Tokens',
+            '',
+            'Every try of every case so far, every recheck, and every apply - the steps under way included.',
+            '',
+            ...tokenRows,
+        );
+    }
+    out.push(...s.rest);
     out.push('## Recent events', '');
     for (const e of t.recent.slice(0, 20)) {
         const who = [
