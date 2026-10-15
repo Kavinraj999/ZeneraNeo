@@ -1,5 +1,6 @@
 <div align="center">
-<img src="docs/imgs/banner-neo.svg" alt="ZENERA NEO" width="720">
+<img src="docs/imgs/banner-neo-dark.svg#gh-dark-mode-only" alt="ZENERA NEO" width="720">
+<img src="docs/imgs/banner-neo-light.svg#gh-light-mode-only" alt="ZENERA NEO" width="720">
 
 [![CI](https://github.com/andreyryabov/ZeneraNeo/actions/workflows/ci.yml/badge.svg)](https://github.com/andreyryabov/ZeneraNeo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

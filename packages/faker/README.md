@@ -1,5 +1,8 @@
 <div align="center">
-<img src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-faker.svg" alt="ZENERA FAKER" width="837">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-faker-dark.svg">
+  <img src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-faker-light.svg" alt="ZENERA FAKER" width="837">
+</picture>
 
 [![npm](https://img.shields.io/npm/v/@zenera/faker.svg)](https://www.npmjs.com/package/@zenera/faker)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/andreyryabov/ZeneraNeo/blob/main/LICENSE)

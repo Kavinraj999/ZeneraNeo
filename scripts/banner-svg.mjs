@@ -3,11 +3,11 @@
 //
 // GitHub strips `style` attributes out of Markdown, so the coloured `<pre>` we
 // print in the terminal arrives on the page as flat text on a `<pre>` box that
-// does not match the theme. The art is therefore shipped as an image, drawn
-// from the very same font the CLI uses, so the README and `zen` can never drift
-// apart. It is ONE image in mid tones that read on a light and a dark page
-// alike: `<picture>` + `prefers-color-scheme` follows the OS, not GitHub's
-// theme setting, so a per-scheme pair shows the wrong one whenever they differ.
+// does not match the theme. The art is therefore shipped as two images — one
+// per colour scheme — drawn from the very same font and tones the CLI uses, so
+// the README and `zen` can never drift apart. On GitHub pick between them with
+// `#gh-dark-mode-only` / `#gh-light-mode-only`: `<picture>` follows the OS
+// theme, not GitHub's, and shows the wrong one whenever the two differ.
 //
 // The glyphs are drawn as rectangles rather than set as text: an SVG loaded
 // through `<img>` has only the reader's fonts to draw with, and a box-drawing
@@ -86,14 +86,29 @@ const SHAPES = {
 const ROLE = { 231: 'face', 244: 'shade', 208: 'accent', 130: 'accentShade' };
 
 /** The head word is the same on every mark; only the second word changes hue. */
-const HEAD = { face: '#6e7781', shade: '#8c959f' };
+const HEAD = {
+    dark: { face: '#ffffff', shade: '#8b949e' },
+    light: { face: '#1f2328', shade: '#8c959f' },
+};
 
 /** One accent per package, so the marks are told apart at a glance. */
 const ACCENTS = {
-    orange: { accent: '#d95c00', accentShade: '#f0883e' },
-    green: { accent: '#1a7f37', accentShade: '#2da44e' },
-    violet: { accent: '#8250df', accentShade: '#a371f7' },
-    pink: { accent: '#bf3989', accentShade: '#e85aad' },
+    orange: {
+        dark: { accent: '#ff8700', accentShade: '#d75f00' },
+        light: { accent: '#d95c00', accentShade: '#9a4200' },
+    },
+    green: {
+        dark: { accent: '#00d75f', accentShade: '#00875f' },
+        light: { accent: '#00d75f', accentShade: '#00875f' },
+    },
+    violet: {
+        dark: { accent: '#a371f7', accentShade: '#7c4ddb' },
+        light: { accent: '#8250df', accentShade: '#5a32a3' },
+    },
+    pink: {
+        dark: { accent: '#ff87d7', accentShade: '#d75faf' },
+        light: { accent: '#bf3989', accentShade: '#99286e' },
+    },
 };
 
 /** An ANSI line as `{ char, role }` cells — the escape codes carry the tone. */
@@ -169,7 +184,10 @@ for (const { file, accent, text } of WORDMARKS) {
     }
 
     const label = `${text.head} ${text.accent}`.toUpperCase();
-    writeFileSync(join(OUT, `${file}.svg`), svg(rows, { ...HEAD, ...ACCENTS[accent] }, label));
+    for (const [name, head] of Object.entries(HEAD)) {
+        const theme = { ...head, ...ACCENTS[accent][name] };
+        writeFileSync(join(OUT, `${file}-${name}.svg`), svg(rows, theme, label));
+    }
     // Three quarters of the drawing, which is where the strokes stay crisp.
     const cols = Math.max(...rows.map((row) => row.length));
     console.log(`${file}: width="${Math.round((cols * W * 3) / 4)}"`);
