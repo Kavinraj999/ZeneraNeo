@@ -104,7 +104,7 @@ example 01.
 > - [01 - Documentation RAG](examples/projects/01-docs-rag/README.md): answers
 >   questions about the Hugging Face Transformers documentation from an index
 >   built out of it.
-> - [02 - Inbox-to-Calendar Meeting Coordinator](examples/projects/02-meeting-coordinator/README.md):
+> - [02 - API Integration](examples/projects/02-api-integration/README.md):
 >   finds a meeting request in a mock mailbox, checks mock calendar availability
 >   and, after you confirm, creates an event and sends a confirmation.
 
