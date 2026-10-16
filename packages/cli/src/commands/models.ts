@@ -783,12 +783,40 @@ const browse: Sub = async (ctx, args) => {
         );
     }
 
+    const chosen = await browseModels({
+        initial,
+        theme: values.theme,
+        refresh: values.refresh,
+    });
+
+    if (!chosen) {
+        // Leaving is a fine way to end a browse, but not an answer to a
+        // substitution that was waiting for one.
+        if (!process.stdout.isTTY) {
+            throw new CliError('nothing picked', EXIT.failed);
+        }
+        return;
+    }
+    write(chosen.ref);
+};
+
+export interface BrowseRequest {
+    /** opens straight into this provider's listing */
+    initial?: Provider;
+    /** the role filter each listing opens on; tab still cycles */
+    role?: Role;
+    refresh?: boolean;
+    theme?: string;
+}
+
+/** The browser, for any command that wants a person to pick a model. */
+export async function browseModels(request: BrowseRequest = {}): Promise<CatalogEntry | undefined> {
     const where = await credentials();
     // Offline, like `providers`: the overview should not cost five listings.
     // A provider is fetched when it is opened.
     const cats = await loadCatalogs(PROVIDERS, { offline: true });
     const { browse: draw } = await import('../tui/models.tsx');
-    const chosen = await draw({
+    return await draw({
         providers: cats.map((c) => ({
             provider: c.provider,
             credential: source(where, c.provider),
@@ -796,9 +824,10 @@ const browse: Sub = async (ctx, args) => {
             origin: c.origin,
             fetchedAt: c.fetchedAt,
         })),
-        initial,
-        theme: values.theme,
-        load: (provider, refresh) => loadCatalog(provider, { refresh: refresh || values.refresh }),
+        initial: request.initial,
+        role: request.role,
+        theme: request.theme,
+        load: (provider, refresh) => loadCatalog(provider, { refresh: refresh || request.refresh }),
         balance: async (provider) =>
             provider === 'openrouter' && source(where, provider) ? routerBalance() : undefined,
         test: async (entry) => {
@@ -817,17 +846,7 @@ const browse: Sub = async (ctx, args) => {
             };
         },
     });
-
-    if (!chosen) {
-        // Leaving is a fine way to end a browse, but not an answer to a
-        // substitution that was waiting for one.
-        if (!process.stdout.isTTY) {
-            throw new CliError('nothing picked', EXIT.failed);
-        }
-        return;
-    }
-    write(chosen.ref);
-};
+}
 
 // ---------------------------------------------------------------------------
 // Dispatch

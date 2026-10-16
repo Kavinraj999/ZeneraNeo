@@ -56,6 +56,8 @@ export interface BrowseOptions {
     providers: readonly ProviderRow[];
     /** opens straight into this provider's listing */
     initial?: Provider;
+    /** the role filter a listing opens on, when it has any such model */
+    role?: Role;
     theme?: string;
     load(provider: Provider, refresh: boolean): Promise<Catalog>;
     /** what the account has left to spend, for providers that say */
@@ -175,7 +177,7 @@ function Browser({ options, theme, onPick }: BrowserProps): React.JSX.Element | 
     const [failure, setFailure] = useState<string>();
     const [query, setQuery] = useState('');
     const [typing, setTyping] = useState(false);
-    const [role, setRole] = useState(0);
+    const [role, setRole] = useState<Role | undefined>(options.role);
     const [selected, setSelected] = useState(0);
     const [verdicts, setVerdicts] = useState<ReadonlyMap<string, Verdict | 'asking'>>(new Map());
     const [balances, setBalances] = useState<ReadonlyMap<Provider, Balance | string>>(new Map());
@@ -234,7 +236,7 @@ function Browser({ options, theme, onPick }: BrowserProps): React.JSX.Element | 
         ],
         [catalog],
     );
-    const only = present[role % present.length];
+    const only = present.includes(role) ? role : undefined;
     const rows = useMemo(
         () =>
             (catalog?.entries ?? [])
@@ -251,7 +253,7 @@ function Browser({ options, theme, onPick }: BrowserProps): React.JSX.Element | 
         setScreen('models');
         setQuery('');
         setTyping(false);
-        setRole(0);
+        setRole(options.role);
         setSelected(0);
         top.current = 0;
         if (!catalogs.has(p)) {
@@ -385,7 +387,7 @@ function Browser({ options, theme, onPick }: BrowserProps): React.JSX.Element | 
             setQuery(input.slice(1));
             setSelected(0);
         } else if (key.tab) {
-            setRole((r) => (r + 1) % present.length);
+            setRole(present[(present.indexOf(only) + 1) % present.length]);
             setSelected(0);
         } else if ((key.return || key.rightArrow || input === 'l') && current) {
             setScreen('detail');
