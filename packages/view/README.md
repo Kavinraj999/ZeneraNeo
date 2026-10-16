@@ -1,3 +1,13 @@
+<div align="center"> 
+  <img
+    src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/zenera-logo-with-media-queries.svg"
+    alt="Zenera Logo"
+    width="20"
+  />
+  <div>Powered By Zenera</div>
+</div>
+<br>
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/banner-view-with-media-queries.svg" alt="ZENERA VIEW" width="747">
 
