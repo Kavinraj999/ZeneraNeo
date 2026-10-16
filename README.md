@@ -1,3 +1,13 @@
+<div align="center"> 
+  <img
+    src="https://raw.githubusercontent.com/andreyryabov/ZeneraNeo/main/docs/imgs/zenera-logo-with-media-queries.svg"
+    alt="Zenera Logo"
+    width="20"
+  />
+  <div>Powered By Zenera</div>
+</div>
+<br>
+
 <div align="center">
 <img src="docs/imgs/banner-neo-dark.svg#gh-dark-mode-only" alt="ZENERA NEO" width="720">
 <img src="docs/imgs/banner-neo-light.svg#gh-light-mode-only" alt="ZENERA NEO" width="720">
@@ -16,7 +26,7 @@ specification and the knowledge your work already has.**
 
 ZeneraNeo turns a clear description of a job into an agentic system built for
 that job. Give it the documents, policies, API schemas, files and integrations
-the work depends on; describe the outcome and its constraints; then let **[the-meta-agent](#what-is-the-meta-agent)** design the specialists, tools, skills, memory, handoffs, retrieval
+the work depends on; describe the outcome and its constraints; then let **[the meta-agent](#what-is-the-meta-agent)** design the specialists, tools, skills, memory, handoffs, retrieval
 and execution strategy that fit.
 
 ## What is it for?
@@ -79,7 +89,7 @@ and the meta-agent turns that description into the actual system.
 - **Memory** - what the agents should remember between runs, and when to look
   in memory first.
 
-> **❓ Why different models are configured?**
+> **❓ Why are different models configured?**
 >
 > **Because both are needed:**
 >
