@@ -184,3 +184,7 @@ In the chat:
 - anything you did not write because the runtime cannot do it, or because it
   needs a value only the reader has
 - then, in one line: send `/spec-sync-project` to make the project match.
+
+## 5. User Request:
+
+Following is the user request that the specification should address (if any):
