@@ -109,7 +109,12 @@ Replace the `SPECIFICATION.md` in `api-integration` with the contents of
 
 ## 5. Generate and check the project
 
-From the project folder, run `zen meta run /spec-sync-project` in your editor's agent chat.
+From the project folder, run:
+
+```sh
+zen meta run /spec-sync-project
+```
+
 It should generate the project agents and the small API integrations that call
 the Mail and Calendar endpoints from the sandbox. The project specification
 defines the API base URLs and the behaviors the integrations must follow.
