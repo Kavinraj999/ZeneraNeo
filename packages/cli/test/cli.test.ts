@@ -1234,7 +1234,7 @@ describe('the model probe', () => {
 
     // The registry refuses a knob the adapter never sends, and the OpenAI
     // adapters have no output cap — so a probe that capped every vendor was
-    // refused before it asked anything (`zen models pick --chat`).
+    // refused before it asked anything.
     describe('building the chat model it asks', () => {
         beforeEach(() => {
             vi.stubEnv('OPENAI_API_KEY', 'sk-test');

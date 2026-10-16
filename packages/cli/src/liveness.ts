@@ -530,7 +530,7 @@ function instead(target: ModelTarget): string {
     }
     return provider
         ? `zen models ls ${provider}`
-        : `zen models pick --${target.kind === 'embedding' ? 'embedding' : 'chat'}`;
+        : `zen models ls --${target.kind === 'embedding' ? 'embeddings' : 'chat'}`;
 }
 
 /**

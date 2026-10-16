@@ -196,8 +196,8 @@ export function describeIssue(issue: ModelIssue): string {
     }
     const why = issue.detail ? `: ${issue.detail}` : '';
     if (issue.reason === 'blocked') {
-        const pick = `zen models pick --${issue.role === 'embedding' ? 'embedding' : 'chat'}`;
-        return `${what} authenticated and was then refused${why} — ${dim(issue.fix ?? pick)}`;
+        const list = `zen models ls --${issue.role === 'embedding' ? 'embeddings' : 'chat'}`;
+        return `${what} authenticated and was then refused${why} — ${dim(issue.fix ?? list)}`;
     }
     const fix = `zen key check ${issue.add ?? ''}`.trim();
     return `${what} was rejected when last checked${why} — ${dim(fix)}`;

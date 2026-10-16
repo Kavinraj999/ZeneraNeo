@@ -7,9 +7,9 @@
 // This command answers the first, and needs no project at all.
 //
 // The split matters most when something breaks. `zen check` says "this
-// embedder was refused"; `zen models pick --embedding` says "use this one
-// instead", and prints a ref on stdout that can be pasted straight back into
-// agents.yaml — or read by an agent doing the pasting.
+// embedder was refused"; `zen models ls --embeddings` and `zen models test`
+// find one that answers, as a ref that can be pasted straight back into
+// agents.yaml.
 // ---------------------------------------------------------------------------
 
 import { createEmbedder, ModelRegistry } from '@zenera/neo';
@@ -22,7 +22,6 @@ import {
     loadCatalog,
     loadCatalogs,
     matches,
-    PREFERRED,
     routerBalance,
     type Catalog,
     type CatalogEntry,
@@ -54,7 +53,7 @@ import {
     yellow,
 } from '../term.ts';
 
-const USAGE = 'zen models <providers|ls|search|show|test|pick|browse> [ref] [options]';
+const USAGE = 'zen models <providers|ls|search|show|test|browse> [ref] [options]';
 
 type Sub = (ctx: Context, args: readonly string[]) => Promise<void>;
 
@@ -285,7 +284,6 @@ const providers: Sub = async (ctx, args) => {
     note('');
     note(dim('zen models ls <provider>   what one of them serves'));
     note(dim('zen models browse          walk them with the arrow keys'));
-    note(dim('zen models pick --chat     the first one that answers'));
 };
 
 // ---------------------------------------------------------------------------
@@ -651,108 +649,13 @@ const test: Sub = async (ctx, args) => {
     }
     const failed = probes.filter((p) => p.check.state !== 'live');
     if (failed.length > 0) {
-        // The suggestion follows what was actually asked, not what was flagged:
-        // being told to `pick --chat` after an embedder was refused is how a
-        // recovery path stops being one.
-        const role = failed.every((p) => p.kind === 'embedding') ? '--embedding' : '--chat';
+        // The suggestion follows what was actually asked, not what was flagged.
+        const role = failed.every((p) => p.kind === 'embedding') ? '--embeddings' : '--chat';
         throw credentialError(
             `${failed.length} of ${probes.length} did not answer`,
-            `find one that does: zen models pick ${role}`,
+            `see what else there is: zen models ls ${role}`,
         );
     }
-};
-
-// ---------------------------------------------------------------------------
-// pick
-// ---------------------------------------------------------------------------
-
-/**
- * The recovery path, and the reason this command exists.
- *
- * Candidates are tried one at a time and the walk stops at the first that
- * answers. Sequential on purpose: the goal is *one* working ref, and firing
- * eight billable calls to find it is the wrong trade — especially for the
- * caller most likely to be running this, which is an agent that has just been
- * refused and is looking for somewhere else to go.
- */
-const pick: Sub = async (ctx, args) => {
-    const { values } = parse<RoleFlags & { provider?: string; limit?: string }>(
-        args,
-        { ...ROLE_OPTIONS, provider: { type: 'string' }, limit: { type: 'string' } },
-        'zen models pick --chat|--embedding [--provider p] [--limit N]',
-    );
-    const roles = rolesFrom(values);
-    if (roles.length !== 1 || (roles[0] !== 'chat' && roles[0] !== 'embedding')) {
-        throw usageError('which kind of model?', 'pass --chat or --embedding');
-    }
-    const role = roles[0];
-
-    const where = await credentials();
-    const targets = scope(where, values.provider);
-    const cap = num(values.limit, '--limit') ?? 8;
-    const candidates = targets
-        .flatMap((p) => PREFERRED[p][role].map((id) => ({ provider: p, id, ref: `${p}:${id}` })))
-        .slice(0, cap);
-
-    if (candidates.length === 0) {
-        throw credentialError(
-            `no ${role} model is known for ${targets.join(', ')}`,
-            'try: zen models pick --provider openai',
-        );
-    }
-
-    const tried: ModelProbe[] = [];
-    const bar = ctx.json ? undefined : progress();
-    for (const candidate of candidates) {
-        bar?.update(dim(`trying ${candidate.ref} …`));
-        const probe = await probeModel(
-            target(candidate.ref, candidate.provider, candidate.id, role),
-        );
-        tried.push(probe);
-        if (probe.check.state !== 'live') {
-            continue;
-        }
-        bar?.done();
-        if (ctx.json) {
-            json({
-                ref: probe.ref,
-                provider: candidate.provider,
-                model: candidate.id,
-                role,
-                ...(probe.dimensions ? { dimensions: probe.dimensions } : {}),
-                ms: probe.ms,
-                tried: tried.map(({ ref, check }) => ({ ref, ...check })),
-            });
-            return;
-        }
-        for (const t of tried.slice(0, -1)) {
-            note(`${dim(t.ref)} ${verdict(t)} ${dim(t.check.detail ?? '')}`);
-        }
-        note(`${green('works')} ${bold(probe.ref)} ${dim(ms(probe.ms))}`);
-        // stdout, alone and unstyled, so `$(zen models pick --embedding)` is
-        // the ref and nothing else.
-        write(probe.ref);
-        return;
-    }
-    bar?.done();
-
-    if (ctx.json) {
-        json({ ref: null, role, tried: tried.map(({ ref, check }) => ({ ref, ...check })) });
-    } else {
-        writeAll(
-            table(
-                tried.map((t) => [
-                    dim(t.ref),
-                    verdict(t),
-                    dim(t.check.fix ?? t.check.detail ?? ''),
-                ]),
-            ),
-        );
-    }
-    throw credentialError(
-        `no ${role} model answered on this machine`,
-        'add a credential: zen key add openai',
-    );
 };
 
 // ---------------------------------------------------------------------------
@@ -764,7 +667,7 @@ const pick: Sub = async (ctx, args) => {
  * one model in full, with a key to ask it a question and a key to take it.
  *
  * The interface is drawn on stderr, so a pick reaches stdout alone and
- * `$(zen models browse)` is the ref, the same contract `pick` keeps.
+ * `$(zen models browse)` is the ref.
  */
 const browse: Sub = async (ctx, args) => {
     const { values, positionals } = parse<{ refresh?: boolean; theme?: string }>(
@@ -779,7 +682,7 @@ const browse: Sub = async (ctx, args) => {
     if (ctx.json || !isInteractive()) {
         throw usageError(
             'browsing needs a person at a terminal',
-            'from a script: zen models ls --json, or zen models pick --chat',
+            'from a script: zen models ls --json',
         );
     }
 
@@ -861,13 +764,12 @@ const SUBS: Record<string, Sub> = {
     show: show,
     test,
     check: test,
-    pick,
     browse,
     ui: browse,
 };
 
 export const models: Command = {
-    summary: 'What this machine can use: list, search, test and pick models.',
+    summary: 'What this machine can use: list, search, test and browse models.',
     usage: USAGE,
     banner: { head: 'Zenera', accent: 'Models', subtitle: 'Model Catalog', hue: 'dusk' },
     details: [
@@ -886,7 +788,6 @@ export const models: Command = {
         '  zen models search <query>        Narrow it — --tools, --vision, --free.',
         '  zen models show <ref>            One model, in full.',
         '  zen models test <ref> …          Ask it one real question.',
-        '  zen models pick --embedding      The first ref that answers, on stdout.',
         '  zen models browse [provider]     Walk providers and models with the',
         '                                   arrow keys; t asks one, p prints its ref.',
     ],
@@ -909,7 +810,7 @@ export const models: Command = {
         }
         throw usageError(
             `unknown: zen models ${name}`,
-            `try: ${cyan('providers, ls, search, show, test, pick, browse')} — or a provider: ${dim(PROVIDERS.join(', '))}`,
+            `try: ${cyan('providers, ls, search, show, test, browse')} — or a provider: ${dim(PROVIDERS.join(', '))}`,
         );
     },
 };

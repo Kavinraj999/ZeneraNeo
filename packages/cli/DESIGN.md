@@ -524,7 +524,6 @@ use_, needs no project, and is the other half of the same question.
 | `zen models search <q>`    | Narrow it: `--tools`, `--vision`, `--free`, `--min-context`. |
 | `zen models show <ref>`    | One model, every field the vendor gave.                      |
 | `zen models test <ref> …`  | One real minimal call, per ref.                              |
-| `zen models pick`          | `--chat` or `--embedding`: the first ref that answers.       |
 | `zen models browse`        | The same catalog, walked with the arrow keys (TUI).          |
 
 `zen models <provider>` is short for `ls <provider>`, because it is what people
@@ -569,18 +568,10 @@ of expiry - it hands back the entry and the time it was written, and freshness i
 the caller's question. It has to be: `stale` is a distinct answer here, and a
 store that had already discarded the entry could not give it.
 
-**`pick` is the recovery path**, and the reason the command exists. It walks a
-short ordered candidate list, cheapest and fastest first, probing one at a time
-and stopping at the first that answers. Sequential on purpose: the goal is _one_
-working ref, and firing eight billable calls to find it is the wrong trade -
-particularly for the caller most likely to be running it, which is an agent that
-has just been refused. The ref goes to stdout alone and unstyled, so
-`$(zen models pick --embedding)` is the ref and nothing else.
-
 **`browse` is the same catalog for a person** (`src/tui/models.tsx`, alias
 `ui`): providers, then one provider's listing with a `/` filter and a role
 cycle, then one model in full. `t` asks the highlighted model one question,
-`p` takes it. It keeps `pick`'s contract by drawing on **stderr**, so the
+`p` takes it. It draws on **stderr**, so the
 picked ref is the only thing on stdout and `$(zen models browse)` works;
 leaving without a pick is exit 1 when stdout is not a terminal, because a
 substitution waiting for a ref has not been answered. The overview is offline
@@ -591,8 +582,9 @@ and keys only.
 The loop this closes:
 
 ```
-zen check                            → embedding "index" blocked: … zen models pick --embedding
-zen models pick --embedding          → openai:text-embedding-3-small
+zen check                            → embedding "index" blocked: … zen models ls --embeddings
+zen models ls --embeddings           → the embedders this account is served
+zen models test <ref>                → answers
 ```
 
 There is no `test --all`. A matrix sweep across every model on the machine is a

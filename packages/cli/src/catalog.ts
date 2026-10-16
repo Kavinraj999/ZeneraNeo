@@ -133,11 +133,8 @@ export const CURATED: Record<
 };
 
 /**
- * The order `zen models pick` walks, per provider and per role.
- *
- * Cheap and fast first. `pick` exists to answer "give me something that works"
- * in one round trip where it can, and the small models answer soonest and cost
- * least when the answer is thrown away — which it always is.
+ * The cheap, fast models per provider and role, best first. `zen init` takes
+ * its default embedder from here.
  */
 export const PREFERRED: Record<
     Provider,

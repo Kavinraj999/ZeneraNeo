@@ -7,8 +7,8 @@
 //
 // Drawn on STDERR, like the banner and every other piece of narration, so the
 // one thing that reaches stdout is the ref picked at the end. That is what
-// makes `ref=$(zen models browse)` work the way `zen models pick` does: the
-// person sees the interface, the shell sees the answer.
+// makes `ref=$(zen models browse)` work: the person sees the interface, the
+// shell sees the answer.
 //
 // Nothing here knows how to list or probe a model. Both arrive as callbacks
 // from commands/models.ts, which already owns credentials and the catalog, so

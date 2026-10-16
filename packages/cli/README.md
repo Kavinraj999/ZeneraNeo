@@ -816,7 +816,6 @@ zen models openai                           # everything OpenAI serves this acco
 zen models search haiku --tools --free      # narrow it
 zen models show openrouter:anthropic/claude-haiku-4.5
 zen models test vertex:gemini-embedding-001 # one real call, one verdict
-zen models pick --embedding                 # the first ref that answers, on stdout
 zen models browse                           # walk providers and models with the arrow keys
 ```
 
@@ -840,15 +839,15 @@ $ zen models test vertex:gemini-embedding-001
 vertex:gemini-embedding-001  blocked  Vertex AI API has not been used in project my-proj …
 fix vertex:gemini-embedding-001 gcloud services enable aiplatform.googleapis.com --project my-proj
 error 1 of 1 did not answer
-        find one that does: zen models pick --embedding
+        see what else there is: zen models ls --embeddings
 ```
 
-`zen models pick` tries a short list of candidates one at a time, stops at the
-first that works, and prints the bare reference on stdout. So recovering from
-the above is a single substitution, whether a person or an agent is doing it:
+To take another model instead, list what the account serves, test one, and put
+its ref in `agents.yaml` or the flag that needs it:
 
 ```sh
-zen rag schema index --embedding "$(zen models pick --embedding)" ./specs/*.yaml
+zen models ls --embeddings
+zen models test openai:text-embedding-3-small
 ```
 
 `zen models browse [provider]` is the interactive way in: arrow keys through
